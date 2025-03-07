@@ -1,0 +1,51 @@
+﻿1️
+Controllers (MVC Layer)
+The controllers are responsible for accepting requests and invoking the appropriate commands or queries.
+
+AuthController.cs: Handles user authentication.
+StocksController.cs: Handles stock-related requests.
+UsersController.cs: Manages user actions (e.g., register, update).
+OrdersController.cs: Handles stock order requests (buy/sell).
+
+
+2️
+CQRS (Command and Query Layers)
+
+Commands (Write Operations)
+CreateUserCommand.cs: A command to create a new user.
+BuyStockCommand.cs: A command to place a buy order for stocks.
+SellStockCommand.cs: A command to place a sell order for stocks.
+
+Queries (Read Operations)
+GetStockHistoryQuery.cs: A query to fetch stock price history.
+GetPortfolioQuery.cs: A query to fetch the user's portfolio.
+GetUserByEmailQuery.cs: A query to fetch user details by email.
+
+
+3️
+Service Layer
+Each service encapsulates the logic for handling both commands and queries. The services use the repositories to interact with the database.
+
+AuthService.cs: Manages the authentication logic, including JWT token generation.
+StockService.cs: Manages stock-related business logic (e.g., calculating stock price, checking availability).
+UserService.cs: Manages user-specific logic (e.g., user creation, password hashing).
+TradeOrderService.cs: Manages trade orders (buying and selling).
+
+
+4️
+Repositories
+Repositories handle the interaction with the database through the Entity Framework or another ORM.
+
+UserRepository.cs: Queries and updates user-related data.
+StockRepository.cs: Queries and updates stock-related data.
+TradeOrderRepository.cs: Handles stock trade orders.
+
+
+5️
+JWT Middleware
+JwtMiddleware.cs: Middleware to authenticate requests using JWT tokens.
+
+
+6️
+Data Layer (ApplicationDbContext.cs)
+The ApplicationDbContext.cs connects to your database, managing the entities and migrations.
