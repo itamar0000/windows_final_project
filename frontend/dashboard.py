@@ -48,8 +48,13 @@ class StyleSheet:
     }
     """
 
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QHBoxLayout)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QIcon
+
 class LoginView(QWidget):
     login_requested = Signal(str, str)
+    forgot_password_requested = Signal(str)
     login_successful = Signal()
 
     def __init__(self):
@@ -59,31 +64,70 @@ class LoginView(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignCenter)
-        layout.setSpacing(20)
+        layout.setSpacing(15)
 
-        title = QLabel("Login to Stock Portfolio Manager")
-        title.setStyleSheet("font-size: 20px; font-weight: bold;")
+        # Title
+        title = QLabel("Stock Portfolio Manager")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #2c3e50;")
 
+        # Username Field
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Username")
+        self.username_input.setStyleSheet(self._input_style())
 
+        # Password Field
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Password")
         self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setStyleSheet(self._input_style())
 
+        # Login Button
         login_button = QPushButton("Login")
+        login_button.setStyleSheet(self._button_style())
         login_button.clicked.connect(self._handle_login_click)
 
+        # Forgot Password
+        self.forgot_password_label = QLabel("<a href='#'>Forgot Password?</a>")
+        self.forgot_password_label.setStyleSheet("font-size: 12px; color: #3498db;")
+        self.forgot_password_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.forgot_password_label.setOpenExternalLinks(False)
+        self.forgot_password_label.linkActivated.connect(self._handle_forgot_password)
+
+        # Add Widgets to Layout
         layout.addWidget(title, alignment=Qt.AlignCenter)
         layout.addWidget(self.username_input)
         layout.addWidget(self.password_input)
         layout.addWidget(login_button)
+        layout.addWidget(self.forgot_password_label, alignment=Qt.AlignCenter)
 
         self.setLayout(layout)
 
-    def get_credentials(self) -> tuple[str, str]:
-        """Returns username and password entered by the user."""
-        return self.username_input.text(), self.password_input.text()
+    def _input_style(self):
+        return """
+        QLineEdit {
+            padding: 10px;
+            border: 2px solid #dcdde1;
+            border-radius: 8px;
+            background-color: white;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        """
+
+    def _button_style(self):
+        return """
+        QPushButton {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background-color: #2980b9;
+        }
+        """
 
     def clear_inputs(self):
         """Clears the username and password fields after login."""
@@ -91,9 +135,14 @@ class LoginView(QWidget):
         self.password_input.clear()
 
     def _handle_login_click(self):
-        """Emits login_requested signal with user credentials."""
-        username, password = self.get_credentials()
+        """Emits login request signal with username and password."""
+        username, password = self.username_input.text(), self.password_input.text()
         self.login_requested.emit(username, password)
+
+    def _handle_forgot_password(self):
+        """Emits forgot password request signal."""
+        self.forgot_password_requested.emit(self.username_input.text())
+
 
 
 
@@ -107,85 +156,150 @@ class PortfolioView(QWidget):
 
     def setup_ui(self):
         layout = QGridLayout()
-        layout.setSpacing(30)
+        layout.setSpacing(30    )
         layout.setContentsMargins(50, 50, 50, 50)
 
         self.summary_card = self._create_summary_card()
         self.holdings_table = self._create_holdings_table()
+        self.chart_view = self._create_performance_chart()
         self.trading_card = self._create_trading_card()
 
         layout.addWidget(self.summary_card, 0, 0, 1, 2)
-        layout.addWidget(self.holdings_table, 1, 0, 1, 2)
+        layout.addWidget(self.holdings_table, 1, 0, 1, 1)
+        layout.addWidget(self.chart_view, 1, 1, 1, 1)
         layout.addWidget(self.trading_card, 2, 0, 1, 2)
 
         self.setLayout(layout)
 
     def _create_summary_card(self) -> QFrame:
-        """Creates a summary card displaying total portfolio value."""
         card = QFrame()
+        card.setStyleSheet("QFrame { background-color: white; border-radius: 8px;border:1px solid black padding: 15px; }")
+        
         layout = QHBoxLayout()
-
+        
+        # Total Value
         self.total_value_label = QLabel("$0.00")
         self.total_value_label.setStyleSheet("font-size: 24px; font-weight: bold;")
-
+        
+        # Daily Change
         self.daily_change_label = QLabel("$0.00 (0.00%)")
         self.daily_change_label.setStyleSheet("font-size: 24px; font-weight: bold;")
-
+        
         layout.addWidget(self.total_value_label)
         layout.addWidget(self.daily_change_label)
         card.setLayout(layout)
         
         return card
 
-    def _create_holdings_table(self) -> QTableWidget:
-        """Creates a table to display stock holdings."""
-        table = QTableWidget()
-        table.setColumnCount(4)
-        table.setHorizontalHeaderLabels(["Symbol", "Shares", "Price", "Value"])
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.stock_table = table
-        return table
+    def _create_holdings_table(self) -> QFrame:
+        card = QFrame()
+        card.setStyleSheet("QFrame { background-color: white; border-radius: 8px; padding: 15px; color:black}")
+        
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Stock Holdings"))
+        self.stock_table = QTableWidget()
+        self.stock_table.setColumnCount(4)
+        self.stock_table.setStyleSheet("""
+    QHeaderView::section {
+        background-color: #f0f0f0;
+        padding: 4px;
+        border: 1px solid #d0d0d0;
+        color: #2c3e50;
+    }
+""")
+        self.stock_table.setHorizontalHeaderLabels(["Symbol", "Shares", "Price", "Value"])
+        self.stock_table.verticalHeader().setVisible(True)
+        self.stock_table.horizontalHeader().setMinimumHeight(70)
+        self.stock_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        
+        layout.addWidget(self.stock_table)
+        card.setLayout(layout)
+        
+        return card
+
+    def _create_performance_chart(self) -> QChartView:
+        chart = QChart()
+        chart.setTheme(QChart.ChartThemeLight)
+        
+        self.performance_series = QLineSeries()
+        chart.addSeries(self.performance_series)
+        chart.createDefaultAxes()
+        
+        chart_view = QChartView(chart)
+        chart_view.setRenderHint(QPainter.Antialiasing)
+        
+        return chart_view
 
     def _create_trading_card(self) -> QFrame:
-        """Creates a buy/sell input section."""
         card = QFrame()
+        card.setStyleSheet("QFrame { background-color: white; border-radius: 8px; padding: 15px; }")
+        
         layout = QHBoxLayout()
-
+        
         self.symbol_input = QLineEdit()
         self.symbol_input.setPlaceholderText("Stock Symbol")
-
+        
         self.shares_input = QLineEdit()
         self.shares_input.setPlaceholderText("Number of Shares")
-
+        
         buy_button = QPushButton("Buy")
         buy_button.clicked.connect(self._handle_buy)
-
+        
         sell_button = QPushButton("Sell")
         sell_button.clicked.connect(self._handle_sell)
-
+        
         layout.addWidget(self.symbol_input)
         layout.addWidget(self.shares_input)
         layout.addWidget(buy_button)
         layout.addWidget(sell_button)
-
+        
         card.setLayout(layout)
         return card
 
     def update_portfolio_summary(self, total_value: float, daily_change: float):
-        """Updates portfolio total value and daily change."""
         self.total_value_label.setText(f"${total_value:,.2f}")
+        
         change_color = "#27ae60" if daily_change >= 0 else "#e74c3c"
         self.daily_change_label.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {change_color};")
         self.daily_change_label.setText(f"${abs(daily_change):,.2f} ({daily_change:+.2f}%)")
 
     def update_holdings_table(self, holdings: List[Stock]):
-        """Updates the holdings table with portfolio data."""
         self.stock_table.setRowCount(len(holdings))
+        
         for row, stock in enumerate(holdings):
             self.stock_table.setItem(row, 0, QTableWidgetItem(stock.symbol))
             self.stock_table.setItem(row, 1, QTableWidgetItem(str(stock.shares)))
             self.stock_table.setItem(row, 2, QTableWidgetItem(f"${stock.current_price:,.2f}"))
             self.stock_table.setItem(row, 3, QTableWidgetItem(f"${stock.value:,.2f}"))
+
+    def update_performance_chart(self, data: List[tuple[datetime, float]]):
+        self.performance_series.clear()
+        for date, value in data:
+            self.performance_series.append(date.timestamp(), value)
+
+    def show_error(self, message: str):
+        # TODO: Implement error display (could use a QMessageBox or status bar)
+        print(f"Error: {message}")
+
+    def _handle_buy(self):
+        try:
+            symbol = self.symbol_input.text().upper()
+            shares = int(self.shares_input.text())
+            self.buy_requested.emit(symbol, shares)
+            self.symbol_input.clear()
+            self.shares_input.clear()
+        except ValueError:
+            self.show_error("Invalid number of shares")
+
+    def _handle_sell(self):
+        try:
+            symbol = self.symbol_input.text().upper()
+            shares = int(self.shares_input.text())
+            self.sell_requested.emit(symbol, shares)
+            self.symbol_input.clear()
+            self.shares_input.clear()
+        except ValueError:
+            self.show_error("Invalid number of shares")
 
 
 class StockSearchView(QWidget):
