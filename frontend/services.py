@@ -1,19 +1,79 @@
 # services.py
 from datetime import datetime
-
 import requests
 from api_client import ApiClient
-from frontend.model import Portfolio
-from frontend.interfaces import IAuthService, IPortfolioService
+from model import Portfolio
+from interfaces import IAuthService, IPortfolioService
+from interfaces import IStockService
+from typing import List
+from datetime import datetime
+from model import Portfolio, Stock
+from interfaces import IPortfolioService
 
 
 class AuthService(IAuthService):
+    def __init__(self):
+        # Mock user database
+        self.mock_users = {
+            "noam": "123",
+            "user1": "securepass",
+            "testuser": "test123"
+        }
+
+    def authenticate(self, username: str, password: str) -> bool:
+        """Checks if username & password match mock data."""
+        print(self.mock_users.get(username) == password)
+        return self.mock_users.get(username) == password
+    
+    """
     def __init__(self):
         self.api_client = ApiClient("https://your-api-url")
     
     def authenticate(self, username: str, password: str) -> bool:
         return self.api_client.login(username, password)
+    """
 
+
+class PortfolioService(IPortfolioService):
+    def __init__(self):
+        # Mock portfolio data (instead of fetching from an API)
+        self.mock_portfolio = Portfolio(
+            stocks=[
+                Stock(symbol="AAPL", shares=10, current_price=150.00),
+                Stock(symbol="TSLA", shares=5, current_price=700.00),
+                Stock(symbol="GOOGL", shares=2, current_price=2800.00),
+            ],
+            last_updated=datetime.now()
+        )
+
+    def get_portfolio(self, user_id: str) -> Portfolio:
+        """Returns mock portfolio data."""
+        return self.mock_portfolio
+
+    def execute_buy_order(self, user_id: str, symbol: str, shares: int) -> bool:
+        """Mock buy order - adds shares to portfolio."""
+        for stock in self.mock_portfolio.stocks:
+            if stock.symbol == symbol:
+                stock.shares += shares
+                return True  # Successful purchase
+        
+        # If stock is new, add it to the portfolio
+        self.mock_portfolio.stocks.append(Stock(symbol=symbol, shares=shares, current_price=100.00))  
+        return True
+
+    def execute_sell_order(self, user_id: str, symbol: str, shares: int) -> bool:
+        """Mock sell order - removes shares from portfolio."""
+        for stock in self.mock_portfolio.stocks:
+            if stock.symbol == symbol:
+                if stock.shares >= shares:
+                    stock.shares -= shares
+                    return True  # Successful sale
+                else:
+                    return False  # Not enough shares
+        
+        return False  # Stock not found in portfolio
+
+"""
 class PortfolioService(IPortfolioService):
     def __init__(self):
         self.api_client = ApiClient("https://your-api-url")
@@ -26,7 +86,7 @@ class PortfolioService(IPortfolioService):
 
     def execute_sell_order(self, user_id: str, symbol: str, shares: int) -> bool:
         return self.api_client.execute_sell_order(user_id, symbol, shares)
-    
+    """
 class StockService(IStockService):
     def __init__(self):
         self.api_client = ApiClient("https://your-api-url")

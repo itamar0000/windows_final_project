@@ -1,4 +1,3 @@
-# main.py
 from PySide6.QtWidgets import QApplication
 import sys
 from dashboard import MainWindow
@@ -7,24 +6,24 @@ from presenter import LoginPresenter, PortfolioPresenter
 
 def main():
     app = QApplication(sys.argv)
-    
-    # Create services
+
+    # Create mock authentication service
     auth_service = AuthService()
-    portfolio_service = PortfolioService()
-    
+
     # Create main window
     window = MainWindow()
-    
-    # Create presenters and connect them to views
+
+    # Connect Login Presenter
     login_presenter = LoginPresenter(window.login_view, auth_service)
+     # Create portfolio service and presenter
+    portfolio_service = PortfolioService()
     portfolio_presenter = PortfolioPresenter(window.portfolio_view, portfolio_service)
-    
-    # Show the window
-    window.show()
-    
-    # Load initial portfolio data
+
+    # Load portfolio data when app starts
     portfolio_presenter.load_portfolio()
-    
+    # Show the main window
+    window.show()
+
     sys.exit(app.exec())
 
 if __name__ == "__main__":

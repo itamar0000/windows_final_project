@@ -1,0 +1,24 @@
+Step 1: Activate a Virtual Environment
+    1. Activate the virtual environment:
+        .\.venv\Scripts\activate
+        
+Step 2: Before Push
+    1. Update requirements.txt
+        pip freeze > requirements.txt 
+
+Step 3: Install Dependencies
+    1. Install required libraries using requirements.txt:
+        pip install -r requirements.txt
+
+
+
+chat gpt prompt:
+
+Help me with my Stock Portfolio Management System project for my Windows Systems Engineering course. The project involves creating a Desktop Application using PySide6 and integrating it with a .NET Core Application Server via CQRS/MVC patterns. 
+The system must manage stock portfolios, allowing users to place buy/sell orders, view order history, and monitor their portfolio. It integrates with APIs like Polygon.io for stock data and Cloudinary for image storage.
+Additionally, I need to incorporate an AI Advisor using an Ollama Docker Server with RAG for financial guidance. 
+The app will use QtCharts for graphs, cloud-based data storage with Event Sourcing on Somee.com, and follow the Gateway Design Pattern for external service communication.
+I might also explore deploying the Application Server to the cloud and using
+ Cloudinary for advanced image transformations. I’d like help with
+[specific task or part of the project],
+ or guidance on how to approach implementing certain components or patterns.
