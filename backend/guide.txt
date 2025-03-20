@@ -1,51 +1,63 @@
-﻿1️
-Controllers (MVC Layer)
-The controllers are responsible for accepting requests and invoking the appropriate commands or queries.
+﻿📦 backend/
+ ┣ 📂 Config/                  
+ ┃ ┗ 📄 appsettings.json       # Stores JWT, database & API keys
+ ┣ 📂 Controllers/             
+ ┃ ┣ 📄 AuthController.cs      # Handles login & registration
+ ┃ ┣ 📄 PortfolioController.cs # Manages user portfolios
+ ┃ ┣ 📄 StockController.cs     # Fetches stock data from Polygon.io
+ ┃ ┣ 📄 ImageController.cs     # Handles Cloudinary image uploads
+ ┃ ┗ 📄 AiAdvisorController.cs # AI stock advice from Ollama
+ ┣ 📂 CQRS/                    
+ ┃ ┣ 📂 Commands/             # Command Handlers (Write Operations)
+ ┃ ┃ ┣ 📄 BuyStockCommand.cs
+ ┃ ┃ ┗ 📄 SellStockCommand.cs
+ ┃ ┣ 📂 Queries/              # Query Handlers (Read Operations)
+ ┃ ┃ ┣ 📄 GetPortfolioQuery.cs
+ ┃ ┃ ┗ 📄 GetStockPriceQuery.cs
+ ┃ ┗ 📄 MediatorSetup.cs       # Sets up CQRS with MediatR
+ ┣ 📂 Data/                   
+ ┃ ┣ 📂 Migrations/           # Database Migrations
+ ┃ ┣ 📄 DataSeeder.cs         # Seeds sample users for testing
+ ┃ ┣ 📄 ApplicationDbContext.cs # EF Core database setup
+ ┃ ┗ 📄 EventStoreDbContext.cs # Event sourcing DB setup
+ ┣ 📂 Deployment/             
+ ┃ ┗ 📄 Dockerfile            # Deployment container setup
+ ┣ 📂 EventSourcing/          
+ ┃ ┣ 📄 EventHandler.cs       # Handles stock buy/sell events
+ ┃ ┗ 📄 EventStore.cs         # Stores all stock trade events
+ ┣ 📂 Gateway/                
+ ┃ ┣ 📄 ExternalApiGateway.cs # Manages API calls (Polygon.io, Cloudinary)
+ ┃ ┗ 📄 ServiceRegistry.cs    # Stores external service endpoints
+ ┣ 📂 Middleware/             # (Optional) Custom middleware (logging, exceptions)
+ ┣ 📂 Models/                 
+ ┃ ┣ 📄 User.cs               # User model (Username, PasswordHash)
+ ┃ ┣ 📄 Portfolio.cs          # Portfolio model (UserID, Stocks)
+ ┃ ┣ 📄 Stock.cs              # Stock model (Symbol, Price, Shares)
+ ┃ ┣ 📄 Transaction.cs        # Transaction model (buy/sell history)
+ ┃ ┗ 📄 Image.cs              # Image model for Cloudinary
+ ┣ 📂 Services/               
+ ┃ ┣ 📄 AuthService.cs        # Handles authentication (JWT)
+ ┃ ┣ 📄 PortfolioService.cs   # Manages buy/sell stock logic
+ ┃ ┣ 📄 StockService.cs       # Calls Polygon.io for stock prices
+ ┃ ┣ 📄 ImageService.cs       # Manages Cloudinary uploads
+ ┃ ┗ 📄 AiAdvisorService.cs   # Calls Ollama AI for stock insights
+ ┣ 📂 Tests/                  # (Optional) Unit & Integration Tests
+ ┃ ┣ 📄 AuthServiceTests.cs
+ ┃ ┣ 📄 PortfolioServiceTests.cs
+ ┃ ┣ 📄 StockServiceTests.cs
+ ┃ ┗ 📄 AiAdvisorServiceTests.cs
+ ┣ 📄 backend.csproj           # Project dependencies
+ ┣ 📄 backend.http             # API request testing file
+ ┣ 📄 guide.txt                # Documentation guide
+ ┣ 📄 Program.cs               # Main entry point for API
+ ┣ 📄 README.md                # Documentation
+ ┗ 📄 .gitignore               # Git ignore settings
 
-AuthController.cs: Handles user authentication.
-StocksController.cs: Handles stock-related requests.
-UsersController.cs: Manages user actions (e.g., register, update).
-OrdersController.cs: Handles stock order requests (buy/sell).
 
 
-2️
-CQRS (Command and Query Layers)
-
-Commands (Write Operations)
-CreateUserCommand.cs: A command to create a new user.
-BuyStockCommand.cs: A command to place a buy order for stocks.
-SellStockCommand.cs: A command to place a sell order for stocks.
-
-Queries (Read Operations)
-GetStockHistoryQuery.cs: A query to fetch stock price history.
-GetPortfolioQuery.cs: A query to fetch the user's portfolio.
-GetUserByEmailQuery.cs: A query to fetch user details by email.
 
 
-3️
-Service Layer
-Each service encapsulates the logic for handling both commands and queries. The services use the repositories to interact with the database.
+ How to kill port in case of use:
 
-AuthService.cs: Manages the authentication logic, including JWT token generation.
-StockService.cs: Manages stock-related business logic (e.g., calculating stock price, checking availability).
-UserService.cs: Manages user-specific logic (e.g., user creation, password hashing).
-TradeOrderService.cs: Manages trade orders (buying and selling).
-
-
-4️
-Repositories
-Repositories handle the interaction with the database through the Entity Framework or another ORM.
-
-UserRepository.cs: Queries and updates user-related data.
-StockRepository.cs: Queries and updates stock-related data.
-TradeOrderRepository.cs: Handles stock trade orders.
-
-
-5️
-JWT Middleware
-JwtMiddleware.cs: Middleware to authenticate requests using JWT tokens.
-
-
-6️
-Data Layer (ApplicationDbContext.cs)
-The ApplicationDbContext.cs connects to your database, managing the entities and migrations.
+ netstat -ano | findstr :5000
+ taskkill /PID <PID> /F

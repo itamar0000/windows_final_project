@@ -1,6 +1,7 @@
-﻿namespace windows_project_backend_temp.CQRS.Queries
+﻿namespace backend.CQRS.Queries
 {
     public class GetPortfolioQuery
     {
+        public string UserId { get; set; }
     }
 }

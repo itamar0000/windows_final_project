@@ -1,4 +1,4 @@
-﻿namespace windows_project_backend_temp.Services
+﻿namespace backend.Services
 {
     public class AuthService
     {
