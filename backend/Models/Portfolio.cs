@@ -1,16 +1,13 @@
-using System.ComponentModel.DataAnnotations;
-using System.Collections.Generic;
-
 namespace backend.Models
 {
     public class Portfolio
     {
-        [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        [Required]
-        public string UserId { get; set; } // User ID who owns this portfolio
+        public Guid UserId { get; set; }
+        public User User { get; set; }
 
-        public List<Stock> Stocks { get; set; } = new List<Stock>(); // Stocks in portfolio
+        public ICollection<Stock> Stocks { get; set; } 
+        public ICollection<Transaction> Transactions { get; set; }
     }
 }

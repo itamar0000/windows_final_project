@@ -1,13 +1,9 @@
-﻿using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using System.Reflection;
+using System.IO;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using backend.Data;
 using backend.Services;
-using System.Reflection;
-using System;
-using System.IO;
 
 namespace backend
 {
@@ -24,23 +20,6 @@ namespace backend
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // Configure Authentication (JWT)
-            var jwtKey = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]);
-            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
-                {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
-                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                        ValidAudience = builder.Configuration["Jwt:Audience"],
-                        IssuerSigningKey = new SymmetricSecurityKey(jwtKey)
-                    };
-                });
-
             // Register Application Services
             builder.Services.AddScoped<AuthService>();
             builder.Services.AddScoped<PortfolioService>();
@@ -52,14 +31,14 @@ namespace backend
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
 
-            // Configure Swagger with JWT Support
+            // Configure Swagger (no JWT)
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo
                 {
                     Title = "Stock Portfolio Management API",
                     Version = "v1",
-                    Description = "An API for managing stock portfolios, including buying/selling stocks, authentication, and AI-powered investment analysis.",
+                    Description = "An API for managing stock portfolios, including buying/selling stocks and AI-powered investment analysis.",
                     Contact = new OpenApiContact
                     {
                         Name = "Your Name",
@@ -73,33 +52,7 @@ namespace backend
                     }
                 });
 
-                // Enable JWT Authentication in Swagger UI
-                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-                {
-                    Description = "Enter 'Bearer <token>' (without quotes) in the field below",
-                    Name = "Authorization",
-                    In = ParameterLocation.Header,
-                    Type = SecuritySchemeType.Http,
-                    Scheme = "Bearer",
-                    BearerFormat = "JWT"
-                });
-
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
-                {
-                    {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
-                        },
-                        Array.Empty<string>()
-                    }
-                });
-
-                // Include XML comments for better documentation
+                // Include XML comments (optional)
                 var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
                 var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
                 if (File.Exists(xmlPath))
@@ -110,7 +63,7 @@ namespace backend
 
             var app = builder.Build();
 
-            // ✅ Always Enable Swagger
+            // Enable Swagger UI
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
@@ -119,8 +72,10 @@ namespace backend
             });
 
             app.UseHttpsRedirection();
-            app.UseAuthentication();
+
+            // No authentication
             app.UseAuthorization();
+
             app.MapControllers();
 
             app.Run();

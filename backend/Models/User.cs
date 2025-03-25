@@ -1,21 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace backend.Models
+﻿namespace backend.Models
 {
     public class User
     {
-        [Key]
-        public int Id { get; set; }
-
-        [Required]
-        [MaxLength(50)]
+        public Guid Id { get; set; } = Guid.NewGuid();
         public string Username { get; set; }
-
-        [Required]
-        public string PasswordHash { get; set; }  // Hashed password for security
-
-        public string? Email { get; set; }  // Optional email field
-
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string PasswordHash { get; set; }
     }
+
+
 }

@@ -25,10 +25,13 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetPortfolio()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null) return Unauthorized();
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdString == null) return Unauthorized();
+
+            Guid userId = Guid.Parse(userIdString);
 
             var query = new GetPortfolioQuery { UserId = userId };
+
             var portfolio = await _portfolioService.HandleQuery(query);
 
             if (portfolio == null) return NotFound("Portfolio not found");
@@ -38,11 +41,21 @@ namespace backend.Controllers
         [HttpPost("buy")]
         public async Task<IActionResult> BuyStock([FromBody] Transaction request)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null) return Unauthorized();
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdString == null) return Unauthorized();
 
-            var command = new BuyStockCommand { UserId = userId, Symbol = request.Symbol, Shares = request.Shares, Price = request.Price };
+            Guid userId = Guid.Parse(userIdString); 
+
+            var command = new BuyStockCommand
+            {
+                UserId = userId,             
+                Symbol = request.Symbol,
+                Shares = request.Shares,
+                Price = request.Price
+            };
+
             var success = await _portfolioService.HandleCommand(command);
+
 
             if (!success) return BadRequest("Failed to buy stock");
             return Ok("Stock purchased successfully");
@@ -51,11 +64,19 @@ namespace backend.Controllers
         [HttpPost("sell")]
         public async Task<IActionResult> SellStock([FromBody] Transaction request)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId == null) return Unauthorized();
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdString, out Guid userId))
+                return Unauthorized("Invalid user ID");
 
-            var command = new SellStockCommand { UserId = userId, Symbol = request.Symbol, Shares = request.Shares };
+            var command = new SellStockCommand
+            {
+                UserId = userId,
+                Symbol = request.Symbol,
+                Shares = request.Shares
+            };
+
             var success = await _portfolioService.HandleCommand(command);
+
 
             if (!success) return BadRequest("Failed to sell stock");
             return Ok("Stock sold successfully");
