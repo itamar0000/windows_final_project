@@ -13,25 +13,19 @@ from interfaces import IPortfolioService
 
 class AuthService(IAuthService):
     def __init__(self):
-        # Mock user database
-        self.mock_users = {
-            "noam": "123",
-            "user1": "securepass",
-            "testuser": "test123"
-        }
+        self.api_client = ApiClient("http://localhost:5000")
+        self.user_id = None
 
     def authenticate(self, username: str, password: str) -> bool:
-        """Checks if username & password match mock data."""
-        print(self.mock_users.get(username) == password)
-        return self.mock_users.get(username) == password
-    
-    """
-    def __init__(self):
-        self.api_client = ApiClient("https://your-api-url")
-    
-    def authenticate(self, username: str, password: str) -> bool:
-        return self.api_client.login(username, password)
-    """
+        self.user_id = self.api_client.login(username, password)
+        return self.user_id is not None
+
+    def register(self, username: str, password: str) -> bool:
+        self.user_id = self.api_client.register(username, password)
+        return self.user_id is not None
+
+    def get_user_id(self):
+        return self.user_id
 
 
 class PortfolioService(IPortfolioService):

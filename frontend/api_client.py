@@ -7,17 +7,28 @@ from model import Portfolio, Stock
 class ApiClient:
     def __init__(self, base_url: str):
         self.base_url = base_url
-        self.token: Optional[str] = None
 
-    def login(self, username: str, password: str) -> bool:
+    def login(self, username: str, password: str) -> str | None:
         response = requests.post(
-            f"{self.base_url}/api/auth/login",
+            f"{self.base_url}/api/Auth/login",
             json={"username": username, "password": password}
         )
-        if response.ok:
-            self.token = response.json().get("token")
-            return True
-        return False
+
+        if response.status_code == 200:
+            return response.json()["userId"]  # ← this is from your backend
+        else:
+            return None
+        
+    def register(self, username: str, password: str) -> str | None:
+        response = requests.post(
+            f"{self.base_url}/api/Auth/register",
+            json={"username": username, "password": password}
+        )
+        if response.status_code == 200:
+            return response.json()["userId"]
+        return None
+
+
 
     def get_portfolio(self, user_id: str) -> Portfolio:
         response = requests.get(

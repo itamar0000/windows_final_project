@@ -2,23 +2,35 @@ from interfaces import ILoginView, IPortfolioView, IAuthService, IPortfolioServi
 from model import Portfolio
 from datetime import datetime
 from PySide6.QtWidgets import QMessageBox
+from interfaces import IPortfolioView, IPortfolioService
+from model import Portfolio
+
 
 class LoginPresenter:
     def __init__(self, view: ILoginView, auth_service: IAuthService):
         self.view = view
         self.auth_service = auth_service
 
-        # Connect login button signal to handle login
         self.view.login_requested.connect(self.handle_login)
+        self.view.signup_requested.connect(self.handle_signup)
+        
+
 
     def handle_login(self, username: str, password: str):
         """Handles login attempt and updates UI accordingly."""
-        print(username, password)
         if self.auth_service.authenticate(username, password):
             self.view.clear_inputs()
-            self.view.login_successful.emit()  # Switch to portfolio view
+            self.view.login_successful.emit(self.auth_service.get_user_id())
         else:
             self.show_error("Invalid username or password")
+
+    def handle_signup(self, username: str, password: str):
+        """Handles user registration."""
+        if self.auth_service.register(username, password):
+            self.view.clear_inputs()
+            self.view.login_successful.emit(self.auth_service.get_user_id())
+        else:
+            self.show_error("Username already exists or failed to register.")
 
     def show_error(self, message):
         """Display error message in a popup."""
@@ -28,28 +40,14 @@ class LoginPresenter:
         msg_box.setText(message)
         msg_box.exec()
 
-"""
-class LoginPresenter:
-    def __init__(self, view: ILoginView, auth_service: IAuthService):
-        self.view = view
-        self.auth_service = auth_service
-        self.view.login_requested.connect(self.handle_login)
-    
-    def handle_login(self, username: str, password: str):
-        if self.auth_service.authenticate(username, password):
-            self.view.clear_inputs()
-            self.view.login_successful.emit()
-        else:
-            self.view.show_error("Invalid credentials")
-"""
-from interfaces import IPortfolioView, IPortfolioService
-from model import Portfolio
+
 
 class PortfolioPresenter:
-    def __init__(self, view: IPortfolioView, portfolio_service: IPortfolioService):
+    def __init__(self, view: IPortfolioView, portfolio_service: IPortfolioService, user_id: str):
         self.view = view
         self.service = portfolio_service
-        self.current_user_id = "mock_user"  # Using a mock user for now
+        self.current_user_id = user_id  # ✅ Now real user!
+
 
         # Connect UI signals to functions
         self.view.buy_requested.connect(self.handle_buy)

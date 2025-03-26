@@ -11,6 +11,8 @@ from services import StockService
 from model import Stock, Portfolio
 from interfaces import ILoginView, IPortfolioView, IStockService
 import sys
+from PySide6.QtCore import QObject
+
 
 class StyleSheet:
     MAIN_STYLE = """
@@ -54,8 +56,10 @@ from PySide6.QtGui import QIcon
 
 class LoginView(QWidget):
     login_requested = Signal(str, str)
+    signup_requested = Signal(str, str)    
     forgot_password_requested = Signal(str)
-    login_successful = Signal()
+    login_successful = Signal(str)  # pass userId to Portfolio
+    
 
     def __init__(self):
         super().__init__()
@@ -86,6 +90,12 @@ class LoginView(QWidget):
         login_button.setStyleSheet(self._button_style())
         login_button.clicked.connect(self._handle_login_click)
 
+        # Sign Up Button
+        signup_button = QPushButton("Sign Up")
+        signup_button.setStyleSheet(self._button_style())
+        signup_button.clicked.connect(self._handle_signup_click)
+
+
         # Forgot Password
         self.forgot_password_label = QLabel("<a href='#'>Forgot Password?</a>")
         self.forgot_password_label.setStyleSheet("font-size: 12px; color: #3498db;")
@@ -98,6 +108,8 @@ class LoginView(QWidget):
         layout.addWidget(self.username_input)
         layout.addWidget(self.password_input)
         layout.addWidget(login_button)
+        layout.addWidget(signup_button)
+
         layout.addWidget(self.forgot_password_label, alignment=Qt.AlignCenter)
 
         self.setLayout(layout)
@@ -138,6 +150,12 @@ class LoginView(QWidget):
         """Emits login request signal with username and password."""
         username, password = self.username_input.text(), self.password_input.text()
         self.login_requested.emit(username, password)
+        
+
+    def _handle_signup_click(self):
+        username, password = self.username_input.text(), self.password_input.text()
+        self.signup_requested.emit(username, password)
+
 
     def _handle_forgot_password(self):
         """Emits forgot password request signal."""

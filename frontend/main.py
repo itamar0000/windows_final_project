@@ -7,23 +7,23 @@ from presenter import LoginPresenter, PortfolioPresenter
 def main():
     app = QApplication(sys.argv)
 
-    # Create mock authentication service
-    auth_service = AuthService()
-
-    # Create main window
+    # Create main window and services
     window = MainWindow()
-
-    # Connect Login Presenter
-    login_presenter = LoginPresenter(window.login_view, auth_service)
-     # Create portfolio service and presenter
+    auth_service = AuthService()
     portfolio_service = PortfolioService()
-    portfolio_presenter = PortfolioPresenter(window.portfolio_view, portfolio_service)
 
-    # Load portfolio data when app starts
-    portfolio_presenter.load_portfolio()
-    # Show the main window
+    # Create login presenter
+    login_presenter = LoginPresenter(window.login_view, auth_service)
+
+    # Connect login success to create portfolio presenter
+    def on_login_success(user_id: str):
+        portfolio_presenter = PortfolioPresenter(window.portfolio_view, portfolio_service, user_id)
+        portfolio_presenter.load_portfolio()
+
+    window.login_view.login_successful.connect(on_login_success)
+
+    # Show window
     window.show()
-
     sys.exit(app.exec())
 
 if __name__ == "__main__":

@@ -3,9 +3,11 @@ from datetime import datetime
 from model import Stock, Portfolio
 
 class ILoginView(Protocol):
+    
     def show_error(self, message: str): pass
     def clear_inputs(self): pass
     def get_credentials(self) -> tuple[str, str]: pass
+    
 
 class IPortfolioView(Protocol):
     def update_portfolio_summary(self, total_value: float, daily_change: float): pass
