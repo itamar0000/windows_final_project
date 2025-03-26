@@ -1,88 +1,42 @@
 using backend.CQRS.Commands;
 using backend.CQRS.Queries;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using backend.Services;
 using backend.Models;
+using backend.Data;
 
 namespace backend.Controllers
 {
-    [Route("api/portfolio")]
     [ApiController]
-    [Authorize]
+    [Route("api/[controller]")]
     public class PortfolioController : ControllerBase
     {
-        private readonly PortfolioService _portfolioService;
+        private readonly ApplicationDbContext _context;
 
-        public PortfolioController(PortfolioService portfolioService)
+        public PortfolioController(ApplicationDbContext context)
         {
-            _portfolioService = portfolioService;
+            _context = context;
         }
 
-
-        [HttpGet]
-        public async Task<IActionResult> GetPortfolio()
+        [HttpGet("{userId}")]
+        public async Task<IActionResult> GetPortfolio(Guid userId)
         {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userIdString == null) return Unauthorized();
+            var portfolio = await _context.Portfolios
+                .Include(p => p.Stocks)
+                .Include(p => p.Transactions)
+                .FirstOrDefaultAsync(p => p.UserId == userId);
 
-            Guid userId = Guid.Parse(userIdString);
+            if (portfolio == null)
+                return NotFound(new { error = "Portfolio not found" });
 
-            var query = new GetPortfolioQuery { UserId = userId };
-
-            var portfolio = await _portfolioService.HandleQuery(query);
-
-            if (portfolio == null) return NotFound("Portfolio not found");
             return Ok(portfolio);
         }
-
-        [HttpPost("buy")]
-        public async Task<IActionResult> BuyStock([FromBody] Transaction request)
-        {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userIdString == null) return Unauthorized();
-
-            Guid userId = Guid.Parse(userIdString); 
-
-            var command = new BuyStockCommand
-            {
-                UserId = userId,             
-                Symbol = request.Symbol,
-                Shares = request.Shares,
-                Price = request.Price
-            };
-
-            var success = await _portfolioService.HandleCommand(command);
-
-
-            if (!success) return BadRequest("Failed to buy stock");
-            return Ok("Stock purchased successfully");
-        }
-
-        [HttpPost("sell")]
-        public async Task<IActionResult> SellStock([FromBody] Transaction request)
-        {
-            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Guid.TryParse(userIdString, out Guid userId))
-                return Unauthorized("Invalid user ID");
-
-            var command = new SellStockCommand
-            {
-                UserId = userId,
-                Symbol = request.Symbol,
-                Shares = request.Shares
-            };
-
-            var success = await _portfolioService.HandleCommand(command);
-
-
-            if (!success) return BadRequest("Failed to sell stock");
-            return Ok("Stock sold successfully");
-        }
-
     }
+
 
 }
 

@@ -24,15 +24,11 @@ namespace backend.Services
 
         public async Task<string> RegisterUserAsync(RegisterUserCommand command)
         {
-            // Check if user already exists
             var exists = await _context.Users.AnyAsync(u => u.Username == command.Username);
             if (exists)
-                throw new Exception("Username already exists.");
+                throw new Exception("Username already exists");
 
-            // Hash the password
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(command.Password);
-
-            // Create user
             var user = new User
             {
                 Id = Guid.NewGuid(),
@@ -41,11 +37,20 @@ namespace backend.Services
             };
 
             _context.Users.Add(user);
+
+            // ✅ Create portfolio for the new user
+            var portfolio = new Portfolio
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id
+            };
+
+            _context.Portfolios.Add(portfolio);
+
             await _context.SaveChangesAsync();
-
             return user.Id.ToString();
-
         }
+
 
 
         public async Task<Guid> LoginAsync(string username, string password)

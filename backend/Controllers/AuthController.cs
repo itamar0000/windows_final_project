@@ -2,6 +2,9 @@ using backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using backend.Models;
 using backend.CQRS.Commands;
+using backend.Data;
+using Microsoft.EntityFrameworkCore;
+
 
 namespace backend.Controllers
 {
@@ -43,6 +46,9 @@ namespace backend.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+  
+
 
     }
 
