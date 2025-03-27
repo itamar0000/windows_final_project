@@ -36,21 +36,48 @@ namespace backend.Services
             };
 
 
-            var portfolio = await _dbContext.Portfolios.FirstOrDefaultAsync(p => p.UserId == command.UserId);
+            var portfolio = await _dbContext.Portfolios
+                .Include(p => p.Stocks)
+                .FirstOrDefaultAsync(p => p.UserId == command.UserId);
             if (portfolio == null)
             {
                 portfolio = new Portfolio { UserId = command.UserId, Stocks = new List<Stock>() };
                 _dbContext.Portfolios.Add(portfolio);
             }
 
-            portfolio.Stocks.Add(stock);
+            var existingStock = portfolio.Stocks.FirstOrDefault(s => s.Symbol == command.Symbol);
+
+            if (existingStock != null)
+            {
+                existingStock.Shares += command.Shares;
+                existingStock.CurrentPrice = price.Value;
+            }
+            else
+            {
+                var newStock = new Stock
+                {
+                    Symbol = command.Symbol,
+                    Shares = command.Shares,
+                    CurrentPrice = price.Value,
+                    PortfolioId = portfolio.Id
+                };
+                portfolio.Stocks.Add(newStock);
+            }
             await _dbContext.SaveChangesAsync();
             return true;
         }
 
         public async Task<bool> HandleCommand(SellStockCommand command)
         {
-            var portfolio = await _dbContext.Portfolios.FirstOrDefaultAsync(p => p.UserId == command.UserId);
+            var portfolio = await _dbContext.Portfolios
+                .Include(p => p.Stocks)
+                .FirstOrDefaultAsync(p => p.UserId == command.UserId);
+            if (portfolio == null)
+                return false;
+
+            if (portfolio.Stocks == null)
+                return false;
+
             if (portfolio == null) return false;
 
             var stock = portfolio.Stocks.FirstOrDefault(s => s.Symbol == command.Symbol);
