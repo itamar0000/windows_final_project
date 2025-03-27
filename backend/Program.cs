@@ -27,6 +27,7 @@ namespace backend
             builder.Services.AddScoped<ImageService>();
             builder.Services.AddScoped<AiAdvisorService>();
 
+
             // Enable Controllers
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();

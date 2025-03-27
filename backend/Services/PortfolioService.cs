@@ -10,23 +10,31 @@ namespace backend.Services
     public class PortfolioService
     {
         private readonly ApplicationDbContext _dbContext;
+        private readonly StockService _stockService;
 
-        public PortfolioService(ApplicationDbContext dbContext)
+
+        public PortfolioService(ApplicationDbContext dbContext, StockService stockService)
         {
             _dbContext = dbContext;
+            _stockService = stockService;
         }
+
 
         public async Task<bool> HandleCommand(BuyStockCommand command)
         {
             var user = await _dbContext.Users.FindAsync(command.UserId);
             if (user == null) return false;
 
+            var price = await _stockService.GetCurrentPrice(command.Symbol);
+            if (price == null) return false;
+
             var stock = new Stock
             {
                 Symbol = command.Symbol,
                 Shares = command.Shares,
-                CurrentPrice = command.Price
+                CurrentPrice = price.Value
             };
+
 
             var portfolio = await _dbContext.Portfolios.FirstOrDefaultAsync(p => p.UserId == command.UserId);
             if (portfolio == null)
