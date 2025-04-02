@@ -1,60 +1,27 @@
-﻿📦 backend/
- ┣ 📂 Config/                  
- ┃ ┗ 📄 appsettings.json       # Stores JWT, database & API keys
- ┣ 📂 Controllers/             
- ┃ ┣ 📄 AuthController.cs      # Handles login & registration
- ┃ ┣ 📄 PortfolioController.cs # Manages user portfolios
- ┃ ┣ 📄 StockController.cs     # Fetches stock data from Polygon.io
- ┃ ┣ 📄 ImageController.cs     # Handles Cloudinary image uploads
- ┃ ┗ 📄 AiAdvisorController.cs # AI stock advice from Ollama
- ┣ 📂 CQRS/                    
- ┃ ┣ 📂 Commands/             # Command Handlers (Write Operations)
- ┃ ┃ ┣ 📄 BuyStockCommand.cs
- ┃ ┃ ┗ 📄 SellStockCommand.cs
- ┃ ┣ 📂 Queries/              # Query Handlers (Read Operations)
- ┃ ┃ ┣ 📄 GetPortfolioQuery.cs
- ┃ ┃ ┗ 📄 GetStockPriceQuery.cs
- ┃ ┗ 📄 MediatorSetup.cs       # Sets up CQRS with MediatR
- ┣ 📂 Data/                   
- ┃ ┣ 📂 Migrations/           # Database Migrations
- ┃ ┣ 📄 DataSeeder.cs         # Seeds sample users for testing
- ┃ ┣ 📄 ApplicationDbContext.cs # EF Core database setup
- ┃ ┗ 📄 EventStoreDbContext.cs # Event sourcing DB setup
- ┣ 📂 Deployment/             
- ┃ ┗ 📄 Dockerfile            # Deployment container setup
- ┣ 📂 EventSourcing/          
- ┃ ┣ 📄 EventHandler.cs       # Handles stock buy/sell events
- ┃ ┗ 📄 EventStore.cs         # Stores all stock trade events
- ┣ 📂 Gateway/                
- ┃ ┣ 📄 ExternalApiGateway.cs # Manages API calls (Polygon.io, Cloudinary)
- ┃ ┗ 📄 ServiceRegistry.cs    # Stores external service endpoints
- ┣ 📂 Middleware/             # (Optional) Custom middleware (logging, exceptions)
- ┣ 📂 Models/                 
- ┃ ┣ 📄 User.cs               # User model (Username, PasswordHash)
- ┃ ┣ 📄 Portfolio.cs          # Portfolio model (UserID, Stocks)
- ┃ ┣ 📄 Stock.cs              # Stock model (Symbol, Price, Shares)
- ┃ ┣ 📄 Transaction.cs        # Transaction model (buy/sell history)
- ┃ ┗ 📄 Image.cs              # Image model for Cloudinary
- ┣ 📂 Services/               
- ┃ ┣ 📄 AuthService.cs        # Handles authentication (JWT)
- ┃ ┣ 📄 PortfolioService.cs   # Manages buy/sell stock logic
- ┃ ┣ 📄 StockService.cs       # Calls Polygon.io for stock prices
- ┃ ┣ 📄 ImageService.cs       # Manages Cloudinary uploads
- ┃ ┗ 📄 AiAdvisorService.cs   # Calls Ollama AI for stock insights
- ┣ 📂 Tests/                  # (Optional) Unit & Integration Tests
- ┃ ┣ 📄 AuthServiceTests.cs
- ┃ ┣ 📄 PortfolioServiceTests.cs
- ┃ ┣ 📄 StockServiceTests.cs
- ┃ ┗ 📄 AiAdvisorServiceTests.cs
- ┣ 📄 backend.csproj           # Project dependencies
- ┣ 📄 backend.http             # API request testing file
- ┣ 📄 guide.txt                # Documentation guide
- ┣ 📄 Program.cs               # Main entry point for API
- ┣ 📄 README.md                # Documentation
- ┗ 📄 .gitignore               # Git ignore settings
+﻿Step 1: Activate a Virtual Environment
+    1. Activate the virtual environment:
+        .\.venv\Scripts\activate
+        
+Step 2: Before Push
+    1. Update requirements.txt
+        pip freeze > requirements.txt 
+
+Step 3: Install Dependencies
+    1. Install required libraries using requirements.txt:
+        pip install -r requirements.txt
 
 
 
+chat gpt prompt:
+
+Help me with my Stock Portfolio Management System project for my Windows Systems Engineering course. The project involves creating a Desktop Application using PySide6 and integrating it with a .NET Core Application Server via CQRS/MVC patterns. 
+The system must manage stock portfolios, allowing users to place buy/sell orders, view order history, and monitor their portfolio. It integrates with APIs like Polygon.io for stock data and Cloudinary for image storage.
+Additionally, I need to incorporate an AI Advisor using an Ollama Docker Server with RAG for financial guidance. 
+The app will use QtCharts for graphs, cloud-based data storage with Event Sourcing on Somee.com, and follow the Gateway Design Pattern for external service communication.
+I might also explore deploying the Application Server to the cloud and using
+ Cloudinary for advanced image transformations. I’d like help with
+[specific task or part of the project],
+ or guidance on how to approach implementing certain components or patterns.
 
 
  How to kill port in case of use:
