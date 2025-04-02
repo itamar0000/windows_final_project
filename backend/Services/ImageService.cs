@@ -30,15 +30,15 @@ namespace backend.Services
             {
                 File = new FileDescription(imagePath),
                 Folder = "default",
-                PublicId = "profile_default",
+                PublicId = "profile_default",  // So the URL stays consistent
                 Overwrite = true,
                 Transformation = new Transformation().Width(500).Height(500).Crop("fill")
             };
 
             var uploadResult = _cloudinary.Upload(uploadParams);
-
             return uploadResult.SecureUrl.AbsoluteUri;
         }
+
 
         public async Task<string> UploadImageAsync(IFormFile file, string userId)
         {
