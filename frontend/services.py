@@ -30,42 +30,29 @@ class AuthService(IAuthService):
 
 class PortfolioService(IPortfolioService):
     def __init__(self):
-        # Mock portfolio data (instead of fetching from an API)
-        self.mock_portfolio = Portfolio(
-            stocks=[
-                Stock(symbol="AAPL", shares=10, current_price=150.00),
-                Stock(symbol="TSLA", shares=5, current_price=700.00),
-                Stock(symbol="GOOGL", shares=2, current_price=2800.00),
-            ],
-            last_updated=datetime.now()
-        )
+        self.api_client = ApiClient("http://localhost:5000")  # ✅ Replace with your backend URL
 
     def get_portfolio(self, user_id: str) -> Portfolio:
-        """Returns mock portfolio data."""
-        return self.mock_portfolio
+        response = requests.get(f"{self.base_url}/api/portfolio/{user_id}")
+        data = response.json()
+        return Portfolio(
+            stocks=[Stock(**stock) for stock in data["stocks"]],
+            last_updated=datetime.fromisoformat(data["lastUpdated"])
+        )
 
     def execute_buy_order(self, user_id: str, symbol: str, shares: int) -> bool:
-        """Mock buy order - adds shares to portfolio."""
-        for stock in self.mock_portfolio.stocks:
-            if stock.symbol == symbol:
-                stock.shares += shares
-                return True  # Successful purchase
-        
-        # If stock is new, add it to the portfolio
-        self.mock_portfolio.stocks.append(Stock(symbol=symbol, shares=shares, current_price=100.00))  
-        return True
+        response = requests.post(
+            f"{self.base_url}/api/orders/buy",
+            json={"userId": user_id, "symbol": symbol, "shares": shares}
+        )
+        return response.ok
 
     def execute_sell_order(self, user_id: str, symbol: str, shares: int) -> bool:
-        """Mock sell order - removes shares from portfolio."""
-        for stock in self.mock_portfolio.stocks:
-            if stock.symbol == symbol:
-                if stock.shares >= shares:
-                    stock.shares -= shares
-                    return True  # Successful sale
-                else:
-                    return False  # Not enough shares
-        
-        return False  # Stock not found in portfolio
+        response = requests.post(
+            f"{self.base_url}/api/orders/sell",
+            json={"userId": user_id, "symbol": symbol, "shares": shares}
+        )
+        return response.ok
 
 """
 class PortfolioService(IPortfolioService):
@@ -83,7 +70,7 @@ class PortfolioService(IPortfolioService):
     """
 class StockService(IStockService):
     def __init__(self):
-        self.api_client = ApiClient("https://your-api-url")
+        self.api_client = ApiClient("http://localhost:5000")
     
     def get_stock_data(self, symbol: str) -> tuple[List[tuple[datetime, float]], str, float]:
         return self.api_client.get_stock_data(symbol)
@@ -91,12 +78,8 @@ class StockService(IStockService):
     def search_stock(self, query: str) -> List[tuple[str, str]]:
         return self.api_client.search_stock(query)
 
-# api_client.py - Add these new methods
 def get_stock_data(self, symbol: str) -> tuple[List[tuple[datetime, float]], str, float]:
-    response = requests.get(
-        f"{self.base_url}/api/stocks/{symbol}",
-        headers={"Authorization": f"Bearer {self.token}"}
-    )
+    response = requests.get(f"{self.base_url}/api/stocks/{symbol}")
     data = response.json()
     return (
         [(datetime.fromisoformat(point["date"]), point["price"]) for point in data["history"]],
@@ -107,8 +90,8 @@ def get_stock_data(self, symbol: str) -> tuple[List[tuple[datetime, float]], str
 def search_stock(self, query: str) -> List[tuple[str, str]]:
     response = requests.get(
         f"{self.base_url}/api/stocks/search",
-        params={"q": query},
-        headers={"Authorization": f"Bearer {self.token}"}
+        params={"q": query}
     )
     results = response.json()
     return [(item["symbol"], item["name"]) for item in results]
+

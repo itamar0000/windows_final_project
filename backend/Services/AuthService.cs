@@ -14,42 +14,38 @@ namespace backend.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _config;
+        private readonly string _defaultProfileImageUrl;
+
 
 
         public AuthService(ApplicationDbContext context, IConfiguration config)
         {
             _context = context;
             _config = config;
+            _defaultProfileImageUrl = config["Cloudinary:DefaultProfileImageUrl"];
+
         }
 
-        public async Task<string> RegisterUserAsync(RegisterUserCommand command)
+        public async Task<Guid> RegisterUserAsync(RegisterUserCommand command)
         {
-            var exists = await _context.Users.AnyAsync(u => u.Username == command.Username);
-            if (exists)
-                throw new Exception("Username already exists");
+            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == command.Username);
+            if (existingUser != null)
+                throw new Exception("Username already taken");
 
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(command.Password);
             var user = new User
             {
                 Id = Guid.NewGuid(),
                 Username = command.Username,
-                PasswordHash = hashedPassword
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(command.Password),
+                ProfileImageUrl = _defaultProfileImageUrl
             };
 
             _context.Users.Add(user);
-
-            // ✅ Create portfolio for the new user
-            var portfolio = new Portfolio
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id
-            };
-
-            _context.Portfolios.Add(portfolio);
-
             await _context.SaveChangesAsync();
-            return user.Id.ToString();
+
+            return user.Id;
         }
+
 
 
 

@@ -26,4 +26,3 @@ class Portfolio:
     @property
     def total_value(self) -> float:
         return sum(stock.value for stock in self.stocks)
-

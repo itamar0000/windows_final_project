@@ -1,8 +1,5 @@
-using System.Threading.Tasks;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
-using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Http;
 
 namespace backend.Services
 {
@@ -10,15 +7,37 @@ namespace backend.Services
     {
         private readonly Cloudinary _cloudinary;
 
-        public ImageService(IConfiguration config)
+        public ImageService()
         {
             var account = new Account(
-                config["Cloudinary:CloudName"],
-                config["Cloudinary:ApiKey"],
-                config["Cloudinary:ApiSecret"]
+                "dxohlu5cy",                      // Cloud name
+                "527676832721251",                // API Key
+                "Z5Fczs4Wq3uGv9oLof22g3QWzds"      // API Secret
             );
 
             _cloudinary = new Cloudinary(account);
+            _cloudinary.Api.Secure = true;
+        }
+
+        public string UploadDefaultProfileImage()
+        {
+            var imagePath = Path.Combine("Data", "images", "profile.png");
+
+            if (!File.Exists(imagePath))
+                throw new FileNotFoundException("Default profile image not found.", imagePath);
+
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(imagePath),
+                Folder = "default",
+                PublicId = "profile_default",
+                Overwrite = true,
+                Transformation = new Transformation().Width(500).Height(500).Crop("fill")
+            };
+
+            var uploadResult = _cloudinary.Upload(uploadParams);
+
+            return uploadResult.SecureUrl.AbsoluteUri;
         }
 
         public async Task<string> UploadImageAsync(IFormFile file, string userId)
@@ -31,12 +50,13 @@ namespace backend.Services
             var uploadParams = new ImageUploadParams
             {
                 File = new FileDescription(file.FileName, stream),
-                Folder = $"users/{userId}", // dynamic folder
+                Folder = $"users/{userId}", // Save inside Cloudinary folder per user
                 Transformation = new Transformation().Width(500).Height(500).Crop("fill")
             };
 
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
             return uploadResult.SecureUrl?.ToString();
         }
+
     }
 }

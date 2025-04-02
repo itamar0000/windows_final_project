@@ -11,7 +11,13 @@ from services import StockService
 from model import Stock, Portfolio
 from interfaces import ILoginView, IPortfolioView, IStockService
 import sys
+from PySide6.QtGui import QPixmap
+import requests
 from PySide6.QtCore import QObject
+from PySide6.QtWidgets import QFileDialog
+import os
+from api_client import ApiClient
+
 
 
 class StyleSheet:
@@ -191,22 +197,46 @@ class PortfolioView(QWidget):
 
     def _create_summary_card(self) -> QFrame:
         card = QFrame()
-        card.setStyleSheet("QFrame { background-color: white; border-radius: 8px;border:1px solid black padding: 15px; }")
-        
+        card.setStyleSheet("QFrame { background-color: white; border-radius: 8px; border:1px solid black; padding: 15px; }")
+
         layout = QHBoxLayout()
-        
-        # Total Value
+
+        # 🖼 Profile Picture
+        self.profile_pic_label = QLabel()
+        self.profile_pic_label.setFixedSize(100, 100)
+        self.profile_pic_label.setStyleSheet("border: 1px solid #ccc;")
+        self.profile_pic_label.setAlignment(Qt.AlignCenter)
+
+        # Load default image (local asset)
+        default_path = os.path.join(os.path.dirname(__file__), "assets/default_profile.png")
+        default_pixmap = QPixmap(default_path)
+
+        self.profile_pic_label.setPixmap(default_pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+        # 📤 Upload Button
+        self.upload_button = QPushButton("Upload Image")
+        self.upload_button.clicked.connect(self._handle_upload_image)
+
+        # Left section (image + button)
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(self.profile_pic_label, alignment=Qt.AlignCenter)
+        left_layout.addWidget(self.upload_button, alignment=Qt.AlignCenter)
+
+        # Portfolio summary
+        summary_layout = QVBoxLayout()
         self.total_value_label = QLabel("$0.00")
         self.total_value_label.setStyleSheet("font-size: 24px; font-weight: bold;")
-        
-        # Daily Change
+
         self.daily_change_label = QLabel("$0.00 (0.00%)")
         self.daily_change_label.setStyleSheet("font-size: 24px; font-weight: bold;")
-        
-        layout.addWidget(self.total_value_label)
-        layout.addWidget(self.daily_change_label)
+
+        summary_layout.addWidget(self.total_value_label)
+        summary_layout.addWidget(self.daily_change_label)
+
+        layout.addLayout(left_layout)
+        layout.addLayout(summary_layout)
         card.setLayout(layout)
-        
+
         return card
 
     def _create_holdings_table(self) -> QFrame:
@@ -318,6 +348,12 @@ class PortfolioView(QWidget):
             self.shares_input.clear()
         except ValueError:
             self.show_error("Invalid number of shares")
+    def _handle_upload_image(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Profile Image", "", "Images (*.png *.jpg *.jpeg)")
+        if file_path:
+            print("Selected image:", file_path)
+        # We'll call MainWindow or the Presenter to do the actual upload later
+
 
 
 class StockSearchView(QWidget):
@@ -408,6 +444,7 @@ class StockSearchView(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.api = ApiClient("http://localhost:5000")
         self.setWindowTitle("Stock Portfolio Manager")
         self.setMinimumSize(1200, 800)
         self.setStyleSheet(StyleSheet.MAIN_STYLE)
@@ -440,6 +477,30 @@ class MainWindow(QMainWindow):
         search_action = view_menu.addAction('Stock Search')
         search_action.triggered.connect(lambda: self.stack.setCurrentWidget(self.stock_search_view))
         
-    def show_portfolio(self):
-        """Switch to the portfolio view after successful login"""
+    def show_portfolio(self, user_id: str):
         self.stack.setCurrentWidget(self.portfolio_view)
+        self.load_user_profile_image(user_id)
+
+
+    def load_user_profile_image(self, user_id: str):
+        image_url = self.api.get_profile_image(user_id)
+        if image_url:
+            try:
+                response = requests.get(image_url)
+                if response.status_code == 200:
+                    pixmap = QPixmap()
+                    pixmap.loadFromData(response.content)
+                    self.portfolio_view.profile_pic_label.setPixmap(
+                        pixmap.scaled(
+                            self.portfolio_view.profile_pic_label.size(),
+                            Qt.KeepAspectRatio,
+                            Qt.SmoothTransformation
+                        )
+                    )
+                else:
+                    self.portfolio_view.profile_pic_label.setText("Image error")
+            except Exception as e:
+                print("Image fetch failed:", e)
+                self.portfolio_view.profile_pic_label.setText("Image error")
+        else:
+            self.portfolio_view.profile_pic_label.setText("No Image")

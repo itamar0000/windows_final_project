@@ -28,6 +28,7 @@ namespace backend
             builder.Services.AddScoped<AiAdvisorService>();
 
 
+
             // Enable Controllers
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
@@ -80,6 +81,8 @@ namespace backend
             app.MapControllers();
 
             app.Run();
+          
+
         }
     }
 }
