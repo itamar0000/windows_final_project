@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Data;
 using backend.CQRS.Queries;
+using System.Net.Http.Json;
+using System.Text.Json;
+
 
 namespace backend.Services
 {
@@ -26,17 +29,22 @@ namespace backend.Services
         public string Status { get; set; }
     }
 
+
     public class StockService
     {
         private readonly HttpClient _http;
-        private readonly string _apiKey;
+        private readonly string _apiKeyfinn;
+        private readonly string _apiKeyTwelve;
+
         private readonly ApplicationDbContext _context;
 
 
         public StockService(IConfiguration config)
         {
             _http = new HttpClient();
-            _apiKey = config["Finnhub:ApiKey"];
+            _apiKeyfinn = config["Finnhub:ApiKey"];
+            _apiKeyTwelve = config["TwelveData:ApiKey"];
+
         }
         public async Task<decimal?> HandleQuery(GetStockPriceQuery query)
         {
@@ -45,7 +53,7 @@ namespace backend.Services
 
         public async Task<decimal?> GetCurrentPrice(string symbol)
         {
-            var url = $"https://finnhub.io/api/v1/quote?symbol={symbol}&token={_apiKey}";
+            var url = $"https://finnhub.io/api/v1/quote?symbol={symbol}&token={_apiKeyfinn}";
             var response = await _http.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
@@ -153,70 +161,52 @@ namespace backend.Services
             return true;
         }
 
-        public async Task<List<StockHistoryPoint>> HandleQuery(GetStockHistoryQuery query)
+        public async Task<List<StockHistoryPoint>> GetStockHistory(GetStockHistoryQuery query)
         {
 
-            var to = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            long from;
-            string resolution;
+            var toDate = DateTime.UtcNow;
+            var fromDate = toDate.AddYears(-10); // Always get 5 years of data
 
-            switch (query.Range.ToLower())
+
+            var fromStr = fromDate.ToString("yyyy-MM-dd");
+            var toStr = toDate.ToString("yyyy-MM-dd");
+            var url = $"https://api.twelvedata.com/time_series?symbol={query.Symbol}&interval=1day&start_date={fromStr}&end_date={toStr}&apikey={_apiKeyTwelve}";
+
+            Console.WriteLine($" URL: {url}");
+
+            var response = await _http.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
             {
-                case "day":
-                    from = DateTimeOffset.UtcNow.AddDays(-1).ToUnixTimeSeconds();
-                    resolution = "5";
-                    break;
-                case "week":
-                    from = DateTimeOffset.UtcNow.AddDays(-7).ToUnixTimeSeconds();
-                    resolution = "30";
-                    break;
-                case "month":
-                    from = DateTimeOffset.UtcNow.AddMonths(-1).ToUnixTimeSeconds();
-                    resolution = "D";
-                    break;
-                case "year":
-                    from = DateTimeOffset.UtcNow.AddYears(-1).ToUnixTimeSeconds();
-                    resolution = "W";
-                    break;
-                case "10years":
-                    from = DateTimeOffset.UtcNow.AddYears(-10).ToUnixTimeSeconds();
-                    resolution = "M";
-                    break;
-                default:
-                    throw new ArgumentException("Invalid range");
+                Console.WriteLine($" HTTP ERROR: {response.StatusCode}");
+                return new List<StockHistoryPoint>();
             }
 
-            var url = $"https://finnhub.io/api/v1/stock/candle?symbol={query.Symbol}&resolution={resolution}&from={from}&to={to}&token={_apiKey}";
-            var response = await _http.GetAsync(url);
+            var jsonString = await response.Content.ReadAsStringAsync();
 
-
-            if (!response.IsSuccessStatusCode)
-                return new List<StockHistoryPoint>();
-
-            var data = await response.Content.ReadFromJsonAsync<FinnhubCandleResponse>();
-
-            Console.WriteLine($"DEBUG: Finnhub candle URL => {url}");
-
-            if (data != null)
-                Console.WriteLine($"DEBUG: Status = {data.Status}, Points = {data.Timestamps?.Count}");
-            else
-                Console.WriteLine("DEBUG: Response was null");
-
-            if (data?.Status != "ok" || data.Timestamps == null)
+            using var jsonDoc = JsonDocument.Parse(jsonString);
+            if (!jsonDoc.RootElement.TryGetProperty("values", out var values))
                 return new List<StockHistoryPoint>();
 
             var result = new List<StockHistoryPoint>();
-            for (int i = 0; i < data.Timestamps.Count; i++)
+            foreach (var item in values.EnumerateArray())
             {
-                result.Add(new StockHistoryPoint
+                if (item.TryGetProperty("datetime", out var dateProp) &&
+                    item.TryGetProperty("close", out var closeProp) &&
+                    DateTime.TryParse(dateProp.GetString(), out var date) &&
+                    decimal.TryParse(closeProp.GetString(), out var close))
                 {
-                    Date = DateTimeOffset.FromUnixTimeSeconds(data.Timestamps[i]).DateTime,
-                    Price = data.ClosePrices[i]
-                });
+                    result.Add(new StockHistoryPoint
+                    {
+                        Date = date,
+                        Price = close
+                    });
+                }
             }
 
-            return result;
+            return result.OrderBy(p => p.Date).ToList();
         }
+
+
 
 
 

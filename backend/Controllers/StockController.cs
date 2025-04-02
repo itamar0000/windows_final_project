@@ -48,23 +48,15 @@ namespace backend.Controllers
         }
 
         [HttpGet("{symbol}/history")]
-        public async Task<IActionResult> GetHistory(string symbol, [FromQuery] string range = "month")
+        public async Task<IActionResult> GetStockHistory(string symbol)
         {
-            var query = new GetStockHistoryQuery(symbol, range);
-            var history = await _stockService.HandleQuery(query);
+            var query = new GetStockHistoryQuery(symbol);
+            var history = await _stockService.GetStockHistory(query);
 
             if (history == null || history.Count == 0)
                 return NotFound(new { error = "No historical data found" });
 
-            return Ok(new
-            {
-                symbol,
-                range,
-                history = history.Select(h => new {
-                    date = h.Date.ToString("yyyy-MM-dd"),
-                    price = h.Price
-                })
-            });
+            return Ok(history);
         }
 
     }

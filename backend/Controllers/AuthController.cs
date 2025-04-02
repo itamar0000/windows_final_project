@@ -5,7 +5,6 @@ using backend.CQRS.Commands;
 using backend.Data;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace backend.Controllers
 {
     [ApiController]
@@ -13,10 +12,12 @@ namespace backend.Controllers
     public class AuthController : ControllerBase
     {
         private readonly AuthService _authService;
+        private readonly ApplicationDbContext _context;
 
-        public AuthController(AuthService authService)
+        public AuthController(AuthService authService, ApplicationDbContext context)
         {
             _authService = authService;
+            _context = context;
         }
 
         [HttpPost("register")]
@@ -47,9 +48,35 @@ namespace backend.Controllers
             }
         }
 
-  
+        // ? GET /api/auth/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetUser(Guid id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return NotFound();
 
+            return Ok(new
+            {
+                id = user.Id,
+                username = user.Username,
+                profileImageUrl = string.IsNullOrEmpty(user.ProfileImageUrl) ? null : user.ProfileImageUrl
+            });
+        }
 
+        // ? PUT /api/auth/{id}/profile-image
+        [HttpPut("{id}/profile-image")]
+        public async Task<IActionResult> UpdateProfileImage(Guid id, [FromBody] string imageUrl)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return NotFound();
+
+            user.ProfileImageUrl = imageUrl;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Profile image updated", url = imageUrl });
+        }
     }
 
     public class AuthRequest
