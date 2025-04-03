@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using backend.Data;
 using backend.Services;
+using CloudinaryDotNet;
+
 
 namespace backend
 {
@@ -28,6 +30,16 @@ namespace backend
             builder.Services.AddScoped<AiAdvisorService>();
 
 
+
+            builder.Services.AddSingleton(_ =>
+            {
+                var account = new Account(
+                    "dxohlu5cy",                      // Cloud name
+                    "527676832721251",                // API Key
+                    "Z5Fczs4Wq3uGv9oLof22g3QWzds"      // API Secret
+                );
+                return new Cloudinary(account);
+            });
 
             // Enable Controllers
             builder.Services.AddControllers();
@@ -64,7 +76,24 @@ namespace backend
             });
 
             var app = builder.Build();
+            
+            //////////////////////////
+            //var scope = app.Services.CreateScope();
+            //var imageService = scope.ServiceProvider.GetRequiredService<ImageService>();
 
+            //var defaultUrl = imageService.UploadDefaultProfileImage();
+            //Console.WriteLine("✅ Default profile image uploaded:");
+            //Console.WriteLine(defaultUrl);
+            //var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            //var users = context.Users.ToList();
+            //foreach (var user in users)
+            //{
+            //    user.ProfileImageUrl = defaultUrl;
+            //}
+            //context.SaveChanges();
+            //Console.WriteLine("✅ All users updated with default image.");
+
+            /////////////////////////////////
             // Enable Swagger UI
             app.UseSwagger();
             app.UseSwaggerUI(c =>
@@ -81,7 +110,8 @@ namespace backend
             app.MapControllers();
 
             app.Run();
-          
+
+
 
         }
     }

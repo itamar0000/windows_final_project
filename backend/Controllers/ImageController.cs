@@ -3,6 +3,7 @@ using backend.Services;
 using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
 using backend.Data;
+using backend.Services;
 using System.ComponentModel.DataAnnotations;
 
 
@@ -54,6 +55,29 @@ namespace backend.Controllers
 
             return Ok(new { message = "✅ Upload successful", url });
         }
+
+        [HttpGet("profile-image/{userId}")]
+        public async Task<IActionResult> GetProfileImage(Guid userId)
+        {
+            try
+            {
+                var imageUrl = await _imageService.GetProfileImageUrlAsync(userId);
+                if (string.IsNullOrEmpty(imageUrl))
+                    return NotFound("No image found for the user.");
+
+                using var httpClient = new HttpClient();
+                var imageBytes = await httpClient.GetByteArrayAsync(imageUrl);
+
+                return File(imageBytes, "image/png");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🔥 ERROR: {ex.Message}");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+
 
 
     }
