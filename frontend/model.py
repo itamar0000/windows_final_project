@@ -15,14 +15,17 @@ class Stock:
 
 @dataclass
 class User:
+    id: str
     username: str
-    password_hash: str
-    
+    passwordHash: str
+    profileImageUrl: Optional[str] = None
+
 @dataclass
 class Portfolio:
+    user: User
     stocks: List[Stock]
     last_updated: datetime
-    
+
     @property
     def total_value(self) -> float:
         return sum(stock.value for stock in self.stocks)

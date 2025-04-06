@@ -30,29 +30,21 @@ class AuthService(IAuthService):
 
 class PortfolioService(IPortfolioService):
     def __init__(self):
-        self.api_client = ApiClient("http://localhost:5000")  # ✅ Replace with your backend URL
+        self.api_client = ApiClient("http://localhost:5000")  # ✅ URL is here
+    def get_profile_image(self, user_id: str) -> str | None:
+        return self.api_client.get_profile_image(user_id)
 
     def get_portfolio(self, user_id: str) -> Portfolio:
-        response = requests.get(f"{self.base_url}/api/portfolio/{user_id}")
-        data = response.json()
-        return Portfolio(
-            stocks=[Stock(**stock) for stock in data["stocks"]],
-            last_updated=datetime.fromisoformat(data["lastUpdated"])
-        )
+        return self.api_client.get_portfolio(user_id)  # ✅ call through ApiClient
 
     def execute_buy_order(self, user_id: str, symbol: str, shares: int) -> bool:
-        response = requests.post(
-            f"{self.base_url}/api/orders/buy",
-            json={"userId": user_id, "symbol": symbol, "shares": shares}
-        )
-        return response.ok
+        return self.api_client.execute_buy_order(user_id, symbol, shares)
 
     def execute_sell_order(self, user_id: str, symbol: str, shares: int) -> bool:
-        response = requests.post(
-            f"{self.base_url}/api/orders/sell",
-            json={"userId": user_id, "symbol": symbol, "shares": shares}
-        )
-        return response.ok
+        return self.api_client.execute_sell_order(user_id, symbol, shares)
+    def get_username(self, user_id: str) -> str:
+        return self.api_client.get_username(user_id)
+
 
 """
 class PortfolioService(IPortfolioService):
@@ -84,7 +76,7 @@ def get_stock_data(self, symbol: str) -> tuple[List[tuple[datetime, float]], str
     return (
         [(datetime.fromisoformat(point["date"]), point["price"]) for point in data["history"]],
         data["name"],
-        data["current_price"]
+        data["currentPrice"]
     )
 
 def search_stock(self, query: str) -> List[tuple[str, str]]:

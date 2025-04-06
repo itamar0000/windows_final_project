@@ -1,4 +1,4 @@
-using backend.CQRS.Commands;
+﻿using backend.CQRS.Commands;
 using backend.CQRS.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -27,14 +27,48 @@ namespace backend.Controllers
         {
             var portfolio = await _context.Portfolios
                 .Include(p => p.Stocks)
-                .Include(p => p.Transactions)
+                .Include(p => p.User)
+                .Include(p => p.Transactions)  // 👈 This was missing
+
                 .FirstOrDefaultAsync(p => p.UserId == userId);
 
             if (portfolio == null)
                 return NotFound(new { error = "Portfolio not found" });
 
-            return Ok(portfolio);
+            // Get transactions for this user
+            var transactions = await _context.Transactions
+                .Where(t => t.UserId == userId)
+                .OrderByDescending(t => t.Timestamp)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                portfolio.Id,
+                portfolio.UserId,
+                User = new
+                {
+                    portfolio.User.Id,
+                    portfolio.User.Username,
+                    portfolio.User.ProfileImageUrl
+                },
+                Stocks = portfolio.Stocks.Select(s => new
+                {
+                    s.Symbol,
+                    s.Shares,
+                    s.CurrentPrice
+                }),
+                Transactions = transactions.Select(t => new
+                {
+                    t.Symbol,
+                    t.Shares,
+                    t.Price,
+                    t.ActionType,
+                    t.Timestamp
+                })
+            });
         }
+
+
     }
 
 

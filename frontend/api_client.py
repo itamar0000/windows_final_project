@@ -2,7 +2,7 @@
 import datetime
 import requests
 from typing import Optional
-from model import Portfolio, Stock
+from model import Portfolio, Stock , User
 from datetime import datetime
 
 class ApiClient:
@@ -28,44 +28,64 @@ class ApiClient:
         if response.status_code == 200:
             return response.json()["userId"]
         return None
-
-
-
+    
+    
     def get_portfolio(self, user_id: str) -> Portfolio:
-        response = requests.get(
-            f"{self.base_url}/api/portfolio/{user_id}",
-            headers={"Authorization": f"Bearer {self.token}"}
-        )
+        response = requests.get(f"{self.base_url}/api/portfolio/{user_id}")
+        if response.status_code != 200:
+            raise Exception("Portfolio not found")
+
         data = response.json()
-        return Portfolio(
-            stocks=[Stock(**stock) for stock in data["stocks"]],
-            last_updated=datetime.fromisoformat(data["lastUpdated"])
+
+        # Handle empty list of stocks
+        stocks = [
+            Stock(
+                symbol=stock["symbol"],
+                shares=stock["shares"],
+                current_price=stock["currentPrice"]
+            )
+            for stock in data.get("stocks", [])
+        ]
+
+        # Fallback if lastUpdated doesn't exist
+        last_updated = datetime.now()
+
+        user_data = data.get("user")
+        user = User(
+            id=user_data["id"],
+            username=user_data["username"],
+            passwordHash="",  # you can leave this blank since it's not needed on frontend
+            profileImageUrl=user_data.get("profileImageUrl")
         )
+
+        return Portfolio(
+            user=user,
+            stocks=stocks,
+            last_updated=last_updated
+        )
+
 
     def execute_buy_order(self, user_id: str, symbol: str, shares: int) -> bool:
         response = requests.post(
-            f"{self.base_url}/api/orders/buy",
-            headers={"Authorization": f"Bearer {self.token}"},
-            json={
-                "userId": user_id,
-                "symbol": symbol,
-                "shares": shares
-            }
+            f"{self.base_url}/api/Stock/buy",  # ✅ fix this line
+            json={"userId": user_id, "symbol": symbol, "shares": shares}
         )
         return response.ok
 
     def execute_sell_order(self, user_id: str, symbol: str, shares: int) -> bool:
         response = requests.post(
-            f"{self.base_url}/api/orders/sell",
-            headers={"Authorization": f"Bearer {self.token}"},
-            json={
-                "userId": user_id,
-                "symbol": symbol,
-                "shares": shares
-            }
+            f"{self.base_url}/api/Stock/sell",  # ✅ fix this line
+            json={"userId": user_id, "symbol": symbol, "shares": shares}
         )
         return response.ok
-    
+
+
+    def get_profile_image(self, user_id: str) -> str | None:
+        response = requests.get(f"{self.base_url}/api/Image/profile-image/{user_id}")
+        if response.status_code == 200:
+            return f"{self.base_url}/api/Image/profile-image/{user_id}"  # since it returns raw image
+        return None
+
     def upload_profile_image(self, user_id: str, file_path: str) -> str | None:
         with open(file_path, 'rb') as image_file:
             files = {'file': (file_path, image_file, 'multipart/form-data')}
@@ -77,11 +97,7 @@ class ApiClient:
             return response.json().get("imageUrl")
         return None
 
-    def get_profile_image(self, user_id: str) -> str:
-        response = requests.get(f"{self.base_url}/api/Auth/user/{user_id}/image")
-        if response.status_code == 200:
-            return response.json().get("imageUrl")
-        return None
+
 
 
     def get_stock_data(self, symbol: str) -> tuple[list[tuple[datetime, float]], str, float]:
@@ -102,10 +118,16 @@ class ApiClient:
 
         return history, symbol.upper(), price
 
-def search_stock(self, query: str) -> list[tuple[str, str]]:
-    # If you have a real endpoint for searching stock symbols and names
-    res = requests.get(f"{self.base_url}/api/Stock/search", params={"q": query})
-    if res.status_code != 200:
-        return []
+    def search_stock(self, query: str) -> list[tuple[str, str]]:
+        # If you have a real endpoint for searching stock symbols and names
+        res = requests.get(f"{self.base_url}/api/Stock/search", params={"q": query})
+        if res.status_code != 200:
+            return []
 
-    return [(item["symbol"], item["name"]) for item in res.json()]
+        return [(item["symbol"], item["name"]) for item in res.json()]
+    
+    def get_username(self, user_id: str) -> str:
+        response = requests.get(f"{self.base_url}/api/Auth/user/{user_id}")
+        if response.status_code == 200:
+            return response.json().get("username", "Unknown")
+        return "Unknown"

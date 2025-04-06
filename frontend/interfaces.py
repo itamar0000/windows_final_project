@@ -22,6 +22,9 @@ class IPortfolioService(Protocol):
     def get_portfolio(self, user_id: str) -> Portfolio: pass
     def execute_buy_order(self, user_id: str, symbol: str, shares: int) -> bool: pass
     def execute_sell_order(self, user_id: str, symbol: str, shares: int) -> bool: pass
+    def show_error(self, message: str): pass
+    def set_profile_image(self, image_url: str): pass  # ✅ Add this line
+
 
 class IStockService(Protocol):
     def get_stock_data(self, symbol: str) -> tuple[List[tuple[datetime, float]], str, float]: pass

@@ -56,11 +56,20 @@ class PortfolioPresenter:
     def load_portfolio(self):
         """Fetches portfolio data and updates the UI."""
         portfolio = self.service.get_portfolio(self.current_user_id)
+        self.view.set_username(portfolio.user.username)
+
         self.view.update_portfolio_summary(
             portfolio.total_value,
             self._calculate_daily_change(portfolio)
         )
         self.view.update_holdings_table(portfolio.stocks)
+
+        # ✅ Updated to correct method name
+        image_url = self.service.get_profile_image(self.current_user_id)
+        if image_url:
+            self.view.update_profile_image(image_url)
+
+
 
     def _calculate_daily_change(self, portfolio: Portfolio) -> float:
         """Mock function to simulate daily change percentage."""

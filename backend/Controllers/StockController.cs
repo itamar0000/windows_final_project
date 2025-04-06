@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using backend.Services;
 using backend.CQRS.Commands;
@@ -36,16 +36,18 @@ namespace backend.Controllers
         [HttpPost("buy")]
         public async Task<IActionResult> Buy([FromBody] BuyStockCommand command)
         {
-            var success = await _portfolioService.HandleCommand(command);
+            var success = await _stockService.ExecuteBuyOrder(command.UserId, command.Symbol, command.Shares); // ✅
             return success ? Ok(true) : BadRequest("Buy failed.");
         }
+
 
         [HttpPost("sell")]
         public async Task<IActionResult> Sell([FromBody] SellStockCommand command)
         {
-            var success = await _portfolioService.HandleCommand(command);
+            var success = await _stockService.ExecuteSellOrder(command.UserId, command.Symbol, command.Shares); // ✅
             return success ? Ok(true) : BadRequest("Sell failed.");
         }
+
 
         [HttpGet("{symbol}/history")]
         public async Task<IActionResult> GetStockHistory(string symbol)

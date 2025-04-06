@@ -7,6 +7,7 @@ using backend.Data;
 using backend.CQRS.Queries;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore.Query;
 
 
 namespace backend.Services
@@ -39,13 +40,14 @@ namespace backend.Services
         private readonly ApplicationDbContext _context;
 
 
-        public StockService(IConfiguration config)
+        public StockService(IConfiguration config, ApplicationDbContext context)
         {
             _http = new HttpClient();
             _apiKeyfinn = config["Finnhub:ApiKey"];
             _apiKeyTwelve = config["TwelveData:ApiKey"];
-
+            _context = context; // 👈 Make sure this is here
         }
+
         public async Task<decimal?> HandleQuery(GetStockPriceQuery query)
         {
             return await GetCurrentPrice(query.Symbol); // Assuming GetCurrentPrice already exists
@@ -70,8 +72,15 @@ namespace backend.Services
         public async Task<bool> ExecuteBuyOrder(Guid userId, string symbol, int shares)
         {
             var price = await GetCurrentPrice(symbol);
-            if (price == null)
-                return false;
+            Console.WriteLine(price.ToString());
+            Console.WriteLine(price.ToString());
+            Console.WriteLine(price.ToString());
+            Console.WriteLine(price.ToString());
+            Console.WriteLine(price.ToString());
+
+            if (price == null || price == 0)
+                return false;  
+
 
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -80,6 +89,8 @@ namespace backend.Services
             // Get or create the user's portfolio
             var portfolio = await _context.Portfolios
                 .Include(p => p.Stocks)
+                .Include(p => p.Transactions)  // 👈 This was missing
+
                 .FirstOrDefaultAsync(p => p.UserId == userId);
 
             if (portfolio == null)
@@ -107,7 +118,6 @@ namespace backend.Services
                 portfolio.Stocks.Add(stock);
             }
 
-            // Add transaction
             var transaction = new Transaction
             {
                 Symbol = symbol,
@@ -117,9 +127,10 @@ namespace backend.Services
                 Timestamp = DateTime.UtcNow,
                 UserId = userId
             };
-            _context.Transactions.Add(transaction);
 
-            await _context.SaveChangesAsync();
+            _context.Transactions.Add(transaction);
+            await _context.SaveChangesAsync();  // This is key
+
             return true;
         }
         public async Task<bool> ExecuteSellOrder(Guid userId, string symbol, int shares)
@@ -130,6 +141,8 @@ namespace backend.Services
 
             var portfolio = await _context.Portfolios
                 .Include(p => p.Stocks)
+                .Include(p => p.Transactions)  // 👈 This was missing
+
                 .FirstOrDefaultAsync(p => p.UserId == userId);
 
             if (portfolio == null)
@@ -137,15 +150,16 @@ namespace backend.Services
 
             var stock = portfolio.Stocks.FirstOrDefault(s => s.Symbol == symbol);
             if (stock == null || stock.Shares < shares)
-                return false;
+                return false; // ❌ Not enough shares to sell
 
+            // ✅ Adjust shares
             stock.Shares -= shares;
             stock.CurrentPrice = price.Value;
 
             if (stock.Shares == 0)
-                _context.Stocks.Remove(stock);
+                _context.Stocks.Remove(stock); // ❌ Remove stock if no shares left
 
-            // Add transaction
+            // ✅ Log transaction only if valid
             var transaction = new Transaction
             {
                 Symbol = symbol,
@@ -160,6 +174,7 @@ namespace backend.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
 
         public async Task<List<StockHistoryPoint>> GetStockHistory(GetStockHistoryQuery query)
         {

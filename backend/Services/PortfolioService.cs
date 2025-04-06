@@ -1,4 +1,4 @@
-using backend.CQRS.Commands;
+﻿using backend.CQRS.Commands;
 using backend.CQRS.Queries;
 using backend.Models;
 using backend.Data;
@@ -38,6 +38,8 @@ namespace backend.Services
 
             var portfolio = await _dbContext.Portfolios
                 .Include(p => p.Stocks)
+               .Include(p => p.Transactions)  // 👈 This was missing
+
                 .FirstOrDefaultAsync(p => p.UserId == command.UserId);
             if (portfolio == null)
             {
@@ -71,6 +73,8 @@ namespace backend.Services
         {
             var portfolio = await _dbContext.Portfolios
                 .Include(p => p.Stocks)
+                        .Include(p => p.Transactions)  // 👈 This was missing
+
                 .FirstOrDefaultAsync(p => p.UserId == command.UserId);
             if (portfolio == null)
                 return false;
@@ -94,6 +98,8 @@ namespace backend.Services
         {
             return await _dbContext.Portfolios
                 .Include(p => p.Stocks)
+                .Include(p => p.Transactions)  // 👈 This was missing
+
                 .FirstOrDefaultAsync(p => p.UserId == query.UserId);
         }
     }

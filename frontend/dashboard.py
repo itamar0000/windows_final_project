@@ -173,6 +173,7 @@ class LoginView(QWidget):
 class PortfolioView(QWidget):
     buy_requested = Signal(str, int)
     sell_requested = Signal(str, int)
+    upload_image_requested = Signal()
 
     def __init__(self):
         super().__init__()
@@ -180,7 +181,7 @@ class PortfolioView(QWidget):
 
     def setup_ui(self):
         layout = QGridLayout()
-        layout.setSpacing(30    )
+        layout.setSpacing(30)
         layout.setContentsMargins(50, 50, 50, 50)
 
         self.summary_card = self._create_summary_card()
@@ -201,28 +202,27 @@ class PortfolioView(QWidget):
 
         layout = QHBoxLayout()
 
-        # 🖼 Profile Picture
         self.profile_pic_label = QLabel()
         self.profile_pic_label.setFixedSize(100, 100)
         self.profile_pic_label.setStyleSheet("border: 1px solid #ccc;")
         self.profile_pic_label.setAlignment(Qt.AlignCenter)
 
-        # Load default image (local asset)
         default_path = os.path.join(os.path.dirname(__file__), "assets/default_profile.png")
         default_pixmap = QPixmap(default_path)
-
         self.profile_pic_label.setPixmap(default_pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
-        # 📤 Upload Button
         self.upload_button = QPushButton("Upload Image")
-        self.upload_button.clicked.connect(self._handle_upload_image)
+        self.upload_button.clicked.connect(lambda: self.upload_image_requested.emit())
 
-        # Left section (image + button)
+        self.username_label = QLabel("Username")
+        self.username_label.setAlignment(Qt.AlignCenter)
+        self.username_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+
         left_layout = QVBoxLayout()
         left_layout.addWidget(self.profile_pic_label, alignment=Qt.AlignCenter)
         left_layout.addWidget(self.upload_button, alignment=Qt.AlignCenter)
+        left_layout.addWidget(self.username_label, alignment=Qt.AlignCenter)
 
-        # Portfolio summary
         summary_layout = QVBoxLayout()
         self.total_value_label = QLabel("$0.00")
         self.total_value_label.setStyleSheet("font-size: 24px; font-weight: bold;")
@@ -239,10 +239,13 @@ class PortfolioView(QWidget):
 
         return card
 
+    def set_username(self, username: str):
+        self.username_label.setText(username)
+
     def _create_holdings_table(self) -> QFrame:
         card = QFrame()
         card.setStyleSheet("QFrame { background-color: white; border-radius: 8px; padding: 15px; color:black}")
-        
+
         layout = QVBoxLayout()
         layout.addWidget(QLabel("Stock Holdings"))
         self.stock_table = QTableWidget()
@@ -259,61 +262,61 @@ class PortfolioView(QWidget):
         self.stock_table.verticalHeader().setVisible(True)
         self.stock_table.horizontalHeader().setMinimumHeight(70)
         self.stock_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        
+
         layout.addWidget(self.stock_table)
         card.setLayout(layout)
-        
+
         return card
 
     def _create_performance_chart(self) -> QChartView:
         chart = QChart()
         chart.setTheme(QChart.ChartThemeLight)
-        
+
         self.performance_series = QLineSeries()
         chart.addSeries(self.performance_series)
         chart.createDefaultAxes()
-        
+
         chart_view = QChartView(chart)
         chart_view.setRenderHint(QPainter.Antialiasing)
-        
+
         return chart_view
 
     def _create_trading_card(self) -> QFrame:
         card = QFrame()
         card.setStyleSheet("QFrame { background-color: white; border-radius: 8px; padding: 15px; }")
-        
+
         layout = QHBoxLayout()
-        
+
         self.symbol_input = QLineEdit()
         self.symbol_input.setPlaceholderText("Stock Symbol")
-        
+
         self.shares_input = QLineEdit()
         self.shares_input.setPlaceholderText("Number of Shares")
-        
+
         buy_button = QPushButton("Buy")
         buy_button.clicked.connect(self._handle_buy)
-        
+
         sell_button = QPushButton("Sell")
         sell_button.clicked.connect(self._handle_sell)
-        
+
         layout.addWidget(self.symbol_input)
         layout.addWidget(self.shares_input)
         layout.addWidget(buy_button)
         layout.addWidget(sell_button)
-        
+
         card.setLayout(layout)
         return card
 
     def update_portfolio_summary(self, total_value: float, daily_change: float):
         self.total_value_label.setText(f"${total_value:,.2f}")
-        
+
         change_color = "#27ae60" if daily_change >= 0 else "#e74c3c"
         self.daily_change_label.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {change_color};")
         self.daily_change_label.setText(f"${abs(daily_change):,.2f} ({daily_change:+.2f}%)")
 
     def update_holdings_table(self, holdings: List[Stock]):
         self.stock_table.setRowCount(len(holdings))
-        
+
         for row, stock in enumerate(holdings):
             self.stock_table.setItem(row, 0, QTableWidgetItem(stock.symbol))
             self.stock_table.setItem(row, 1, QTableWidgetItem(str(stock.shares)))
@@ -326,7 +329,6 @@ class PortfolioView(QWidget):
             self.performance_series.append(date.timestamp(), value)
 
     def show_error(self, message: str):
-        # TODO: Implement error display (could use a QMessageBox or status bar)
         print(f"Error: {message}")
 
     def _handle_buy(self):
@@ -348,11 +350,26 @@ class PortfolioView(QWidget):
             self.shares_input.clear()
         except ValueError:
             self.show_error("Invalid number of shares")
-    def _handle_upload_image(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Profile Image", "", "Images (*.png *.jpg *.jpeg)")
-        if file_path:
-            print("Selected image:", file_path)
-        # We'll call MainWindow or the Presenter to do the actual upload later
+
+    def update_profile_image(self, image_url: str):
+        try:
+            response = requests.get(image_url)
+            if response.status_code == 200:
+                pixmap = QPixmap()
+                pixmap.loadFromData(response.content)
+                self.profile_pic_label.setPixmap(
+                    pixmap.scaled(
+                        self.profile_pic_label.size(),
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation
+                    )
+                )
+            else:
+                self.show_error("Failed to load updated image.")
+        except Exception as e:
+            print("Image load error:", e)
+            self.show_error("Error loading image.")
+
 
 
 
@@ -450,57 +467,86 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(StyleSheet.MAIN_STYLE)
 
         self.stack = QStackedWidget()
-        
         self.login_view = LoginView()
         self.portfolio_view = PortfolioView()
-        self.stock_search_view = StockSearchView(StockService())  # Add this line
-        
-        # Connect signals
-        self.login_view.login_successful.connect(self.show_portfolio)
-        
+        self.stock_search_view = StockSearchView(StockService())
+
         self.stack.addWidget(self.login_view)
         self.stack.addWidget(self.portfolio_view)
-        self.stack.addWidget(self.stock_search_view)  # Add this line
-        
+        self.stack.addWidget(self.stock_search_view)
+
         self.setCentralWidget(self.stack)
-        
-        # Add navigation menu
+
         self.create_menu()
+        self.connect_signals()
+
+        self.current_user_id = None
+
+    def connect_signals(self):
+        self.login_view.login_successful.connect(self.show_portfolio)
+        self.portfolio_view.upload_image_requested.connect(self.handle_image_upload)
 
     def create_menu(self):
         menubar = self.menuBar()
         view_menu = menubar.addMenu('View')
-        
+
         portfolio_action = view_menu.addAction('Portfolio')
         portfolio_action.triggered.connect(lambda: self.stack.setCurrentWidget(self.portfolio_view))
-        
+
         search_action = view_menu.addAction('Stock Search')
         search_action.triggered.connect(lambda: self.stack.setCurrentWidget(self.stock_search_view))
-        
+
     def show_portfolio(self, user_id: str):
+        self.current_user_id = user_id
         self.stack.setCurrentWidget(self.portfolio_view)
         self.load_user_profile_image(user_id)
 
-
     def load_user_profile_image(self, user_id: str):
-        image_url = self.api.get_profile_image(user_id)
-        if image_url:
-            try:
-                response = requests.get(image_url)
-                if response.status_code == 200:
-                    pixmap = QPixmap()
-                    pixmap.loadFromData(response.content)
-                    self.portfolio_view.profile_pic_label.setPixmap(
-                        pixmap.scaled(
-                            self.portfolio_view.profile_pic_label.size(),
-                            Qt.KeepAspectRatio,
-                            Qt.SmoothTransformation
-                        )
+        try:
+            response = requests.get(f"http://localhost:5000/api/Image/profile-image/{user_id}")
+            if response.status_code == 200:
+                pixmap = QPixmap()
+                pixmap.loadFromData(response.content)
+                self.portfolio_view.profile_pic_label.setPixmap(
+                    pixmap.scaled(
+                        self.portfolio_view.profile_pic_label.size(),
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation
                     )
-                else:
-                    self.portfolio_view.profile_pic_label.setText("Image error")
-            except Exception as e:
-                print("Image fetch failed:", e)
+                )
+            else:
+                print("No profile image found, loading default.")
+                self._set_default_profile_image()
+        except Exception as e:
+            print("Failed to fetch profile image:", e)
+            self._set_default_profile_image()
+
+    def _set_default_profile_image(self):
+        default_url = "https://res.cloudinary.com/dxohlu5cy/image/upload/v1712060777/default/profile_default.png"
+        try:
+            response = requests.get(default_url)
+            if response.status_code == 200:
+                pixmap = QPixmap()
+                pixmap.loadFromData(response.content)
+                self.portfolio_view.profile_pic_label.setPixmap(
+                    pixmap.scaled(
+                        self.portfolio_view.profile_pic_label.size(),
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation
+                    )
+                )
+            else:
                 self.portfolio_view.profile_pic_label.setText("Image error")
-        else:
-            self.portfolio_view.profile_pic_label.setText("No Image")
+        except Exception as e:
+            print("Default image fetch failed:", e)
+            self.portfolio_view.profile_pic_label.setText("Image error")
+
+    def handle_image_upload(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Profile Image", "", "Images (*.png *.jpg *.jpeg)")
+        if file_path and self.current_user_id:
+            print("Uploading:", file_path)
+            url = self.api.upload_profile_image(self.current_user_id, file_path)
+            if url:
+                self.load_user_profile_image(self.current_user_id)
+            else:
+                self.portfolio_view.show_error("Failed to upload image.")

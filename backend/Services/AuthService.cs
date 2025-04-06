@@ -22,7 +22,8 @@ namespace backend.Services
         {
             _context = context;
             _config = config;
-            _defaultProfileImageUrl = config["Cloudinary:DefaultProfileImageUrl"];
+            _defaultProfileImageUrl = "https://res.cloudinary.com/dxohlu5cy/image/upload/v1712060777/default/profile_default.png";
+
 
         }
 
@@ -42,6 +43,15 @@ namespace backend.Services
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
+            // Auto-create a Portfolio for the user
+            var portfolio = new Portfolio
+            {
+                UserId = user.Id,
+                User = user
+            };
+            await _context.Portfolios.AddAsync(portfolio);
+            await _context.SaveChangesAsync();
+
 
             return user.Id;
         }

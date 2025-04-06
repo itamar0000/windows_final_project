@@ -19,6 +19,9 @@ def main():
     def on_login_success(user_id: str):
         portfolio_presenter = PortfolioPresenter(window.portfolio_view, portfolio_service, user_id)
         portfolio_presenter.load_portfolio()
+        window.show_portfolio(user_id)
+
+
 
     window.login_view.login_successful.connect(on_login_success)
 
