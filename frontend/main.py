@@ -17,9 +17,10 @@ def main():
 
     # Connect login success to create portfolio presenter
     def on_login_success(user_id: str):
-        portfolio_presenter = PortfolioPresenter(window.portfolio_view, portfolio_service, user_id)
-        portfolio_presenter.load_portfolio()
+        window.portfolio_presenter = PortfolioPresenter(window.portfolio_view, portfolio_service, user_id)
+        window.portfolio_presenter.load_portfolio()
         window.show_portfolio(user_id)
+
 
 
 

@@ -67,14 +67,14 @@ class ApiClient:
 
     def execute_buy_order(self, user_id: str, symbol: str, shares: int) -> bool:
         response = requests.post(
-            f"{self.base_url}/api/Stock/buy",  # ✅ fix this line
+            f"{self.base_url}/api/Stock/buy",
             json={"userId": user_id, "symbol": symbol, "shares": shares}
         )
         return response.ok
 
     def execute_sell_order(self, user_id: str, symbol: str, shares: int) -> bool:
         response = requests.post(
-            f"{self.base_url}/api/Stock/sell",  # ✅ fix this line
+            f"{self.base_url}/api/Stock/sell",
             json={"userId": user_id, "symbol": symbol, "shares": shares}
         )
         return response.ok

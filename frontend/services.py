@@ -42,6 +42,7 @@ class PortfolioService(IPortfolioService):
 
     def execute_sell_order(self, user_id: str, symbol: str, shares: int) -> bool:
         return self.api_client.execute_sell_order(user_id, symbol, shares)
+    
     def get_username(self, user_id: str) -> str:
         return self.api_client.get_username(user_id)
 
@@ -76,7 +77,7 @@ def get_stock_data(self, symbol: str) -> tuple[List[tuple[datetime, float]], str
     return (
         [(datetime.fromisoformat(point["date"]), point["price"]) for point in data["history"]],
         data["name"],
-        data["currentPrice"]
+        data["current_price"]
     )
 
 def search_stock(self, query: str) -> List[tuple[str, str]]:
