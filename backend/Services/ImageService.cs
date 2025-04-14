@@ -65,6 +65,15 @@ namespace backend.Services
         }
 
 
+        public async Task<string?> GetPresetImageUrl(int index)
+        {
+            string imageName = index == 0 ? "profile_default" : $"profile_{index}";
+            string imageUrl = $"https://res.cloudinary.com/dxohlu5cy/image/upload/default/{imageName}.png";
+            return imageUrl;
+        }
+
+
+
 
     }
 }

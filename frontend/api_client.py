@@ -30,23 +30,29 @@ class ApiClient:
         return None
     
     
+   # In your api_client.py, check the get_portfolio method:
     def get_portfolio(self, user_id: str) -> Portfolio:
         response = requests.get(f"{self.base_url}/api/portfolio/{user_id}")
         if response.status_code != 200:
+            print(f"Portfolio API error: {response.status_code}")
             raise Exception("Portfolio not found")
 
         data = response.json()
+        print("Raw portfolio data:", data)  # See the actual JSON response
 
-        # Handle empty list of stocks
-        stocks = [
-            Stock(
-                symbol=stock["symbol"],
-                shares=stock["shares"],
-                current_price=stock["currentPrice"]
-            )
-            for stock in data.get("stocks", [])
-        ]
-
+        # Make sure you're handling the stocks correctly
+        stocks = []
+        if "stocks" in data and data["stocks"]:
+            stocks = [
+                Stock(
+                    symbol=stock["symbol"],
+                    shares=stock["shares"],
+                    current_price=stock["currentPrice"]
+                )
+                for stock in data["stocks"]
+            ]
+        
+        print(f"Parsed {len(stocks)} stocks from API response")
         # Fallback if lastUpdated doesn't exist
         last_updated = datetime.now()
 

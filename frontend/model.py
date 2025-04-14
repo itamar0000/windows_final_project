@@ -5,9 +5,10 @@ from typing import List, Optional
 
 @dataclass
 class Stock:
-    symbol: str
-    shares: int
-    current_price: float
+    def __init__(self, symbol: str, shares: int, current_price: float):
+        self.symbol = symbol
+        self.shares = shares
+        self.current_price = current_price
     
     @property
     def value(self) -> float:

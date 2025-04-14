@@ -33,28 +33,28 @@ namespace backend.Controllers
         }
 
 
-        [HttpPost("upload")]
-        public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromForm] string userId)
+        [HttpPost("set-preset")]
+        public async Task<IActionResult> SetPresetImage([FromForm] string userId, [FromForm] int presetIndex)
         {
-            if (file == null || string.IsNullOrEmpty(userId))
-                return BadRequest("File and userId are required.");
-
             if (!Guid.TryParse(userId, out var userGuid))
                 return BadRequest("Invalid userId format.");
 
-            var url = await _imageService.UploadImageAsync(file, userId);
-            if (string.IsNullOrEmpty(url))
-                return StatusCode(500, "Image upload failed");
+            if (presetIndex < 0 || presetIndex > 8)
+                return BadRequest("Preset index must be between 0 and 8.");
+
+            var imageUrl = await _imageService.GetPresetImageUrl(presetIndex); // ✅ FIXED
 
             var user = await _context.Users.FindAsync(userGuid);
             if (user == null)
                 return NotFound("User not found.");
 
-            user.ProfileImageUrl = url;
+            user.ProfileImageUrl = imageUrl;
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "✅ Upload successful", url });
+            return Ok(new { message = "✅ Preset image set", imageUrl });
         }
+
+
 
         [HttpGet("profile-image/{userId}")]
         public async Task<IActionResult> GetProfileImage(Guid userId)
@@ -77,7 +77,26 @@ namespace backend.Controllers
             }
         }
 
+        [HttpGet("image-presets/{index}")]
+        public async Task<IActionResult> GetPresetImages(int index)
+        {
+            try
+            {
+                var imageUrl = await _imageService.GetPresetImageUrl(index); // ✅ now imageUrl is string
+                if (string.IsNullOrEmpty(imageUrl))
+                    return NotFound("No image found for the index.");
 
+                using var httpClient = new HttpClient();
+                var imageBytes = await httpClient.GetByteArrayAsync(imageUrl);
+
+                return File(imageBytes, "image/png");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🔥 ERROR: {ex.Message}");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
 
 
     }

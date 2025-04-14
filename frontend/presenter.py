@@ -55,19 +55,17 @@ class PortfolioPresenter:
 
     def load_portfolio(self):
         """Fetches portfolio data and updates the UI."""
+        print("Loading portfolio for user:", self.current_user_id)
         portfolio = self.service.get_portfolio(self.current_user_id)
+        print("Portfolio total value:", portfolio.total_value)
+        print("Stocks in portfolio:", [f"{s.symbol} ({s.shares})" for s in portfolio.stocks])
+        
         self.view.set_username(portfolio.user.username)
-
         self.view.update_portfolio_summary(
             portfolio.total_value,
             self._calculate_daily_change(portfolio)
         )
         self.view.update_holdings_table(portfolio.stocks)
-
-        # ✅ Updated to correct method name
-        image_url = self.service.get_profile_image(self.current_user_id)
-        if image_url:
-            self.view.update_profile_image(image_url)
 
 
 

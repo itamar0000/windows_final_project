@@ -338,6 +338,8 @@ class PortfolioView(QWidget):
         header.setLayout(layout)
         return header
 
+
+
     def _create_holdings_tab(self) -> QWidget:
         holdings_widget = QWidget()
         layout = QVBoxLayout()
@@ -361,6 +363,7 @@ class PortfolioView(QWidget):
         holdings_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50; padding: 10px;")
         
         title_layout.addWidget(holdings_title)
+
         title_layout.addStretch()
         
         # Create table
@@ -435,7 +438,25 @@ class PortfolioView(QWidget):
         layout.addWidget(chart_container)
         
         holdings_widget.setLayout(layout)
+
+
+        self.stock_table.setRowCount(1)
+        test_item = QTableWidgetItem("TEST STOCK")
+        test_item.setBackground(QColor("yellow"))
+        test_item.setForeground(QColor("red"))  # Text color
+        self.stock_table.setItem(0, 0, test_item)
+        self.stock_table.setItem(0, 1, QTableWidgetItem("100"))
+        self.stock_table.setItem(0, 2, QTableWidgetItem("$50.00"))
+        self.stock_table.setItem(0, 3, QTableWidgetItem("$5000.00"))
+        
+        holdings_widget.setLayout(layout)
         return holdings_widget
+    
+
+
+
+        return holdings_widget
+
 
     def _create_transactions_tab(self) -> QWidget:
         transactions_widget = QWidget()
@@ -611,20 +632,44 @@ class PortfolioView(QWidget):
         self.daily_change_label.setText(f"${abs(daily_change):,.2f} ({daily_change:+.2f}%)")
 
     def update_holdings_table(self, holdings: List):
+        # Debug prints
+        print(f"Updating holdings table with {len(holdings)} stocks")
+        
+        # Clear the table and set row count
+        self.stock_table.clearContents()
         self.stock_table.setRowCount(len(holdings))
-
+        
+        # Set a fixed row height
+        self.stock_table.verticalHeader().setDefaultSectionSize(40)
+        
+        # Add stocks to table
         for row, stock in enumerate(holdings):
+            print(f"Adding row {row}: {stock.symbol}, {stock.shares} shares at ${stock.current_price:,.2f}")
+            
+            # Create items with explicit styling
             symbol_item = QTableWidgetItem(stock.symbol)
             symbol_item.setFont(QFont("Segoe UI", 12, QFont.Bold))
+            symbol_item.setBackground(QColor("#f0f0f0"))
             
             shares_item = QTableWidgetItem(str(stock.shares))
-            price_item = QTableWidgetItem(f"${stock.current_price:,.2f}")
-            value_item = QTableWidgetItem(f"${stock.value:,.2f}")
+            shares_item.setBackground(QColor("#f0f0f0"))
             
+            price_item = QTableWidgetItem(f"${stock.current_price:,.2f}")
+            price_item.setBackground(QColor("#f0f0f0"))
+            
+            value_item = QTableWidgetItem(f"${stock.value:,.2f}")
+            value_item.setBackground(QColor("#f0f0f0"))
+            
+            # Set items in table
             self.stock_table.setItem(row, 0, symbol_item)
             self.stock_table.setItem(row, 1, shares_item)
             self.stock_table.setItem(row, 2, price_item)
             self.stock_table.setItem(row, 3, value_item)
+        
+        # Force table to refresh
+        self.stock_table.viewport().update()
+        
+        print(f"Updated table now has {self.stock_table.rowCount()} rows")
 
     def update_transaction_history(self, transactions: List):
         self.transaction_list.setRowCount(len(transactions))
@@ -1009,7 +1054,8 @@ class MainWindow(QMainWindow):
         # Create actions for toolbar
         portfolio_action = QAction("Portfolio", self)
         portfolio_action.triggered.connect(lambda: self.stack.setCurrentWidget(self.portfolio_view))
-        
+        portfolio_action.triggered.connect(self._handle_portfolio_action)
+
         logout_action = QAction("Logout", self)
         logout_action.triggered.connect(self.handle_logout)
         
@@ -1037,6 +1083,11 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentWidget(self.login_view)
         self.toolbar.setVisible(False)
 
+    def _handle_portfolio_action(self):
+        self.stack.setCurrentWidget(self.portfolio_view)
+        if hasattr(self, "portfolio_presenter"):
+            self.portfolio_presenter.load_portfolio()
+
     def load_user_profile_image(self, user_id: str):
         try:
             response = requests.get(f"http://localhost:5000/api/Image/profile-image/{user_id}")
@@ -1058,7 +1109,7 @@ class MainWindow(QMainWindow):
             self._set_default_profile_image()
 
     def _set_default_profile_image(self):
-        default_url = "https://res.cloudinary.com/dxohlu5cy/image/upload/v1712060777/default/profile_default.png"
+        default_url = ".com/dxohlu5cy/image/upload/v1712060777/default/profile_default.png"
         try:
             response = requests.get(default_url)
             if response.status_code == 200:

@@ -22,7 +22,7 @@ namespace backend.Services
         {
             _context = context;
             _config = config;
-            _defaultProfileImageUrl = "https://res.cloudinary.com/dxohlu5cy/image/upload/v1712060777/default/profile_default.png";
+            _defaultProfileImageUrl = "https://res.cloudinary.com/dxohlu5cy/image/upload/default/profile_default.png";
 
 
         }

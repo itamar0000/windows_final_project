@@ -64,19 +64,7 @@ namespace backend.Controllers
             });
         }
 
-        // ? PUT /api/auth/{id}/profile-image
-        [HttpPut("{id}/profile-image")]
-        public async Task<IActionResult> UpdateProfileImage(Guid id, [FromBody] string imageUrl)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-                return NotFound();
-
-            user.ProfileImageUrl = imageUrl;
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Profile image updated", url = imageUrl });
-        }
+       
     }
 
     public class AuthRequest
