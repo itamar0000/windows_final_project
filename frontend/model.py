@@ -15,6 +15,14 @@ class Stock:
         return self.shares * self.current_price
 
 @dataclass
+class Transaction:
+    symbol: str
+    shares: int
+    price: float
+    action_type: str
+    timestamp: str  # Keep as str unless you want to parse it as `datetime`
+
+@dataclass
 class User:
     id: str
     username: str
@@ -26,6 +34,7 @@ class Portfolio:
     user: User
     stocks: List[Stock]
     last_updated: datetime
+    transactions: List[Transaction]
 
     @property
     def total_value(self) -> float:

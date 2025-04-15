@@ -47,6 +47,7 @@ class PortfolioPresenter:
         self.view = view
         self.service = portfolio_service
         self.current_user_id = user_id  # ✅ Now real user!
+        self.view.stock_search_requested.connect(self.handle_stock_search)
 
 
         # Connect UI signals to functions
@@ -60,13 +61,14 @@ class PortfolioPresenter:
         print("Portfolio total value:", portfolio.total_value)
         print("Stocks in portfolio:", [f"{s.symbol} ({s.shares})" for s in portfolio.stocks])
         
+
         self.view.set_username(portfolio.user.username)
         self.view.update_portfolio_summary(
             portfolio.total_value,
             self._calculate_daily_change(portfolio)
         )
         self.view.update_holdings_table(portfolio.stocks)
-
+        self.view.update_transaction_history(portfolio.transactions)
 
 
     def _calculate_daily_change(self, portfolio: Portfolio) -> float:
@@ -86,3 +88,12 @@ class PortfolioPresenter:
             self.load_portfolio()  # Refresh UI after transaction
         else:
             self.view.show_error("Failed to execute sell order")
+
+    def handle_stock_search(self, symbol: str, period: str):
+        try:
+            history, name, price = self.service.get_stock_data(symbol, period)
+            self.view.update_stock_search_result(name, price, history)
+        except Exception as e:
+            print("Stock search failed:", e)
+            self.view.update_stock_search_result("Error", 0.0, [])
+

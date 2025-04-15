@@ -2,8 +2,9 @@
 import datetime
 import requests
 from typing import Optional
-from model import Portfolio, Stock , User
+from model import Portfolio, Stock, User, Transaction
 from datetime import datetime
+from datetime import datetime, timedelta
 
 class ApiClient:
     def __init__(self, base_url: str):
@@ -30,7 +31,6 @@ class ApiClient:
         return None
     
     
-   # In your api_client.py, check the get_portfolio method:
     def get_portfolio(self, user_id: str) -> Portfolio:
         response = requests.get(f"{self.base_url}/api/portfolio/{user_id}")
         if response.status_code != 200:
@@ -52,6 +52,16 @@ class ApiClient:
                 for stock in data["stocks"]
             ]
         
+        transactions = [
+            Transaction(
+                symbol=t["symbol"],
+                shares=t["shares"],
+                price=t["price"],
+                action_type=t["actionType"],
+                timestamp=t.get("timestamp", "")
+            )
+            for t in data.get("transactions", [])
+        ]
         print(f"Parsed {len(stocks)} stocks from API response")
         # Fallback if lastUpdated doesn't exist
         last_updated = datetime.now()
@@ -67,7 +77,8 @@ class ApiClient:
         return Portfolio(
             user=user,
             stocks=stocks,
-            last_updated=last_updated
+            last_updated=last_updated,
+            transactions=transactions
         )
 
 
@@ -105,8 +116,8 @@ class ApiClient:
 
 
 
-
-    def get_stock_data(self, symbol: str) -> tuple[list[tuple[datetime, float]], str, float]:
+    def get_stock_data(self, symbol: str, period: str) -> tuple[list[tuple[datetime, float]], str, float]:
+        # Get full history from backend
         history_res = requests.get(f"{self.base_url}/api/Stock/{symbol}/history")
         if history_res.status_code != 200:
             raise Exception("Failed to load history")
@@ -115,14 +126,34 @@ class ApiClient:
             (datetime.fromisoformat(p["date"]), p["price"])
             for p in history_res.json()
         ]
+        print()
+        print("Raw history data:", history)  # Debugging line
+        # Apply filtering by time period
+        now = datetime.now()
+        period_map = {
+            "1D": timedelta(days=1),
+            "1W": timedelta(weeks=1),
+            "1M": timedelta(days=30),
+            "3M": timedelta(days=90),
+            "6M": timedelta(days=180),
+            "1Y": timedelta(days=365),
+            "5Y": timedelta(days=5*365),
+            "10Y": timedelta(days=10*365)
+        }
+        if period in period_map:
+            start_date = now - period_map[period]
+            history = [(d, p) for d, p in history if d >= start_date]
 
+        # Get current price
         price_res = requests.get(f"{self.base_url}/api/Stock/{symbol}/price")
         if price_res.status_code != 200:
             raise Exception("Failed to load price")
 
         price = price_res.json()["price"]
-
         return history, symbol.upper(), price
+
+
+
 
     def search_stock(self, query: str) -> list[tuple[str, str]]:
         # If you have a real endpoint for searching stock symbols and names

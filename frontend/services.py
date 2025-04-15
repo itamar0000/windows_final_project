@@ -31,6 +31,7 @@ class AuthService(IAuthService):
 class PortfolioService(IPortfolioService):
     def __init__(self):
         self.api_client = ApiClient("http://localhost:5000")  # ✅ URL is here
+
     def get_profile_image(self, user_id: str) -> str | None:
         return self.api_client.get_profile_image(user_id)
 
@@ -45,6 +46,13 @@ class PortfolioService(IPortfolioService):
     
     def get_username(self, user_id: str) -> str:
         return self.api_client.get_username(user_id)
+    
+    def get_stock_data(self, symbol: str, period: str) -> tuple[list[tuple[datetime, float]], str, float]:
+        return self.api_client.get_stock_data(symbol, period)
+
+
+
+
 
 
 """
