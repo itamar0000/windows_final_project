@@ -5,14 +5,19 @@ from typing import List, Optional
 
 @dataclass
 class Stock:
-    def __init__(self, symbol: str, shares: int, current_price: float):
-        self.symbol = symbol
-        self.shares = shares
-        self.current_price = current_price
-    
+    symbol: str
+    shares: int
+    purchase_price: float
+    current_price: float
+
     @property
     def value(self) -> float:
         return self.shares * self.current_price
+
+    @property
+    def gain_loss(self) -> float:
+        return (self.current_price - self.purchase_price) * self.shares
+
 
 @dataclass
 class Transaction:

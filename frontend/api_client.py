@@ -38,20 +38,8 @@ class ApiClient:
             raise Exception("Portfolio not found")
 
         data = response.json()
-        print("Raw portfolio data:", data)  # See the actual JSON response
+        print("Raw portfolio data:", data)
 
-        # Make sure you're handling the stocks correctly
-        stocks = []
-        if "stocks" in data and data["stocks"]:
-            stocks = [
-                Stock(
-                    symbol=stock["symbol"],
-                    shares=stock["shares"],
-                    current_price=stock["currentPrice"]
-                )
-                for stock in data["stocks"]
-            ]
-        
         transactions = [
             Transaction(
                 symbol=t["symbol"],
@@ -62,24 +50,54 @@ class ApiClient:
             )
             for t in data.get("transactions", [])
         ]
-        print(f"Parsed {len(stocks)} stocks from API response")
-        # Fallback if lastUpdated doesn't exist
-        last_updated = datetime.now()
+
+        # Group transactions by symbol
+        tx_by_symbol = {}
+        for t in transactions:
+            if t.action_type == "Buy":
+                tx_by_symbol.setdefault(t.symbol, []).append(t)
+
+        stocks = []
+        for stock in data.get("stocks", []):
+            symbol = stock["symbol"]
+            shares = stock["shares"]
+
+            # Compute average purchase price
+            txs = tx_by_symbol.get(symbol, [])
+            total_shares = sum(t.shares for t in txs)
+            total_cost = sum(t.shares * t.price for t in txs)
+            purchase_price = (total_cost / total_shares) if total_shares > 0 else 0
+
+            try:
+                price_res = requests.get(f"{self.base_url}/api/Stock/{symbol}/price")
+                price_res.raise_for_status()
+                current_price = price_res.json()["price"]
+            except:
+                print(f"Failed to get live price for {symbol}")
+                current_price = purchase_price
+
+            stocks.append(Stock(
+                symbol=symbol,
+                shares=shares,
+                purchase_price=purchase_price,
+                current_price=current_price
+            ))
 
         user_data = data.get("user")
         user = User(
             id=user_data["id"],
             username=user_data["username"],
-            passwordHash="",  # you can leave this blank since it's not needed on frontend
+            passwordHash="",
             profileImageUrl=user_data.get("profileImageUrl")
         )
 
         return Portfolio(
             user=user,
             stocks=stocks,
-            last_updated=last_updated,
+            last_updated=datetime.now(),
             transactions=transactions
         )
+
 
 
     def execute_buy_order(self, user_id: str, symbol: str, shares: int) -> bool:
@@ -126,8 +144,6 @@ class ApiClient:
             (datetime.fromisoformat(p["date"]), p["price"])
             for p in history_res.json()
         ]
-        print()
-        print("Raw history data:", history)  # Debugging line
         # Apply filtering by time period
         now = datetime.now()
         period_map = {

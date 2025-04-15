@@ -219,6 +219,11 @@ class PortfolioView(QWidget):
         layout = QVBoxLayout()
 
         self.username_label = QLabel("Username")
+        self.profile_title_label = QLabel("")
+        self.profile_title_label.setAlignment(Qt.AlignCenter)
+        self.profile_title_label.setStyleSheet("font-size: 12px; color: #7f8c8d;")
+        layout.addWidget(self.profile_title_label)
+
         self.username_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.username_label)
 
@@ -232,12 +237,19 @@ class PortfolioView(QWidget):
         layout.addWidget(change_btn, alignment=Qt.AlignCenter)
 
         self.total_value_label = QLabel("Total Value: $0.00")
+        self.total_gain_loss_label = QLabel("Total Gain/Loss: $0.00")
+        self.total_gain_loss_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.total_gain_loss_label)
+
         self.total_value_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.total_value_label)
 
         self.stock_table = QTableWidget()
-        self.stock_table.setColumnCount(4)
-        self.stock_table.setHorizontalHeaderLabels(["Symbol", "Shares", "Price", "Value"])
+        self.stock_table.setColumnCount(6)
+        self.stock_table.setHorizontalHeaderLabels([
+            "Symbol", "Shares", "Bought Price", "Current Price", "Value", "Gain/Loss"
+        ])
+
         self.stock_table.horizontalHeader().setStretchLastSection(True)
         self.stock_table.verticalHeader().setVisible(False)
         layout.addWidget(self.stock_table)
@@ -266,8 +278,10 @@ class PortfolioView(QWidget):
         layout = QVBoxLayout()
 
         self.transaction_table = QTableWidget()
-        self.transaction_table.setColumnCount(4)
-        self.transaction_table.setHorizontalHeaderLabels(["Action", "Symbol", "Shares", "Price"])
+        self.transaction_table.setColumnCount(5)
+        self.transaction_table.setHorizontalHeaderLabels(["Action", "Symbol", "Shares", "Price", "Date"])
+
+
         self.transaction_table.horizontalHeader().setStretchLastSection(True)
         self.transaction_table.verticalHeader().setVisible(False)
         layout.addWidget(self.transaction_table)
@@ -328,6 +342,11 @@ class PortfolioView(QWidget):
         self.chart_view.setChart(chart)
 
 
+    def update_total_gain_loss(self, amount: float):
+        color = "green" if amount > 0 else "red" if amount < 0 else "black"
+        self.total_gain_loss_label.setText(f"<span style='color:{color}'>Total Gain/Loss: ${amount:,.2f}</span>")
+
+
     def set_username(self, username: str):
         self.username_label.setText(username)
 
@@ -349,8 +368,14 @@ class PortfolioView(QWidget):
         for row, stock in enumerate(holdings):
             self.stock_table.setItem(row, 0, QTableWidgetItem(stock.symbol))
             self.stock_table.setItem(row, 1, QTableWidgetItem(str(stock.shares)))
-            self.stock_table.setItem(row, 2, QTableWidgetItem(f"${stock.current_price:,.2f}"))
-            self.stock_table.setItem(row, 3, QTableWidgetItem(f"${stock.value:,.2f}"))
+            self.stock_table.setItem(row, 2, QTableWidgetItem(f"${stock.purchase_price:,.2f}"))
+            self.stock_table.setItem(row, 3, QTableWidgetItem(f"${stock.current_price:,.2f}"))
+            self.stock_table.setItem(row, 4, QTableWidgetItem(f"${stock.value:,.2f}"))
+
+            gain_loss_item = QTableWidgetItem(f"${stock.gain_loss:,.2f}")
+            gain_loss_item.setForeground(Qt.green if stock.gain_loss > 0 else Qt.red if stock.gain_loss < 0 else Qt.black)
+            self.stock_table.setItem(row, 5, gain_loss_item)
+
 
     def update_transaction_history(self, transactions: List[Transaction]):
         self.transaction_table.setRowCount(len(transactions))
@@ -360,6 +385,15 @@ class PortfolioView(QWidget):
             self.transaction_table.setItem(row, 2, QTableWidgetItem(str(tx.shares)))
             self.transaction_table.setItem(row, 3, QTableWidgetItem(f"${tx.price:,.2f}"))
 
+            try:
+                # Parse and format the date nicely
+                dt = datetime.fromisoformat(tx.timestamp)
+                date_str = dt.strftime("%Y-%m-%d %H:%M")
+            except:
+                date_str = tx.timestamp  # fallback
+            self.transaction_table.setItem(row, 4, QTableWidgetItem(date_str))
+
+
     def show_image_selector(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("Choose Profile Image")
@@ -368,6 +402,14 @@ class PortfolioView(QWidget):
         for i in range(9):
             image_name = "profile_default" if i == 0 else f"profile_{i}"
             image_url = f"https://res.cloudinary.com/dxohlu5cy/image/upload/default/{image_name}.png"
+
+            # Profile titles (edit as needed)
+            profile_titles = [
+                "The Default", "Risk Taker", "Business Savvy", "The Analyst",
+                "Growth Guru", "Steady Saver", "Market Hawk", "The Bull", "The Bear"
+            ]
+
+            # Image
             button = QPushButton()
             button.setFixedSize(80, 80)
             pixmap = QPixmap()
@@ -382,7 +424,22 @@ class PortfolioView(QWidget):
                 continue
 
             button.clicked.connect(lambda _, index=i: self.select_preset(dialog, index))
-            layout.addWidget(button, i // 3, i % 3)
+
+            # Add image and label together
+            image_layout = QVBoxLayout()
+            image_layout.setAlignment(Qt.AlignCenter)
+            image_layout.addWidget(button)
+
+            label = QLabel(profile_titles[i])
+            label.setAlignment(Qt.AlignCenter)
+            label.setStyleSheet("font-size: 12px; color: #2c3e50;")
+            image_layout.addWidget(label)
+
+            # Wrap in a container widget
+            container = QWidget()
+            container.setLayout(image_layout)
+            layout.addWidget(container, i // 3, i % 3)
+
 
         dialog.setLayout(layout)
         dialog.exec()
@@ -390,6 +447,10 @@ class PortfolioView(QWidget):
     def select_preset(self, dialog, index):
         dialog.done(0)
         self.change_profile_image_requested.emit(index)
+
+    def set_profile_title(self, title: str):
+        self.profile_title_label.setText(title)
+
 
     def _handle_buy(self):
         symbol = self.symbol_input.text().upper()
@@ -406,7 +467,6 @@ class PortfolioView(QWidget):
             self.sell_requested.emit(symbol, shares)
         except ValueError:
             print("Invalid number of shares")
-
 
 
 
@@ -641,10 +701,15 @@ class MainWindow(QMainWindow):
         search_action = QAction("Search", self)
         search_action.triggered.connect(lambda: self.portfolio_view.switch_section(3))
 
+        ai_chat_action = QAction("AI Chat", self)
+        ai_chat_action.triggered.connect(self.open_ai_chat_dialog)
+
+
         # Add actions to toolbar
         self.toolbar.addAction(portfolio_action)
         self.toolbar.addAction(transactions_action)
         self.toolbar.addAction(search_action)
+        self.toolbar.addAction(ai_chat_action)
 
         # Spacer to push logout to the right
         spacer = QWidget()
@@ -670,10 +735,18 @@ class MainWindow(QMainWindow):
             )
             if response.status_code == 200:
                 self.load_user_profile_image(self.current_user_id)
+
+                # Set title based on index
+                profile_titles = [
+                    "The Default", "Risk Taker", "Business Savvy", "The Analyst",
+                    "Growth Guru", "Steady Saver", "Market Hawk", "The Bull", "The Bear"
+                ]
+                self.portfolio_view.set_profile_title(profile_titles[index])
             else:
                 print("Failed to set preset image.")
         except Exception as e:
             print("Preset error:", e)
+
 
     def connect_signals(self):
         self.login_view.login_successful.connect(self.show_portfolio)
@@ -740,3 +813,42 @@ class MainWindow(QMainWindow):
 
     def handle_image_upload(self):
         self.portfolio_view.show_image_selector()
+
+
+    def open_ai_chat_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("AI Chat Assistant")
+        dialog.setMinimumSize(500, 400)
+
+        layout = QVBoxLayout()
+
+        # Message area
+        self.chat_display = QLabel("🤖 How can I help you today?")
+        self.chat_display.setWordWrap(True)
+        self.chat_display.setStyleSheet("font-size: 14px; padding: 10px; background-color: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 6px;")
+        layout.addWidget(self.chat_display)
+
+        # Input
+        input_layout = QHBoxLayout()
+        self.chat_input = QLineEdit()
+        self.chat_input.setPlaceholderText("Type your question...")
+        send_btn = QPushButton("Send")
+        send_btn.clicked.connect(self.handle_ai_message)
+        input_layout.addWidget(self.chat_input)
+        input_layout.addWidget(send_btn)
+
+        layout.addLayout(input_layout)
+
+        dialog.setLayout(layout)
+        dialog.exec()
+
+    def handle_ai_message(self):
+        question = self.chat_input.text().strip()
+        if not question:
+            return
+
+        # Simulate AI reply (you can later plug in real backend)
+        response = f"🤖 You said: {question}"
+
+        self.chat_display.setText(response)
+        self.chat_input.clear()

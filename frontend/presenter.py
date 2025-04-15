@@ -63,10 +63,29 @@ class PortfolioPresenter:
         
 
         self.view.set_username(portfolio.user.username)
+        profile_titles = [
+            "The Default", "Risk Taker", "Business Savvy", "The Analyst",
+            "Growth Guru", "Steady Saver", "Market Hawk", "The Bull", "The Bear"
+        ]
+
+        # Derive index from image URL
+        profile_index = 0  # fallback
+        url = portfolio.user.profileImageUrl or ""
+        if "profile_" in url:
+            try:
+                name = url.split("profile_")[1].split(".")[0]
+                profile_index = 0 if name == "default" else int(name)
+            except:
+                profile_index = 0
+
+        self.view.set_profile_title(profile_titles[profile_index])
+
         self.view.update_portfolio_summary(
             portfolio.total_value,
             self._calculate_daily_change(portfolio)
         )
+        total_gain = sum(stock.gain_loss for stock in portfolio.stocks)
+        self.view.update_total_gain_loss(total_gain)
         self.view.update_holdings_table(portfolio.stocks)
         self.view.update_transaction_history(portfolio.transactions)
 

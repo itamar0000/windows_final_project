@@ -72,11 +72,7 @@ namespace backend.Services
         public async Task<bool> ExecuteBuyOrder(Guid userId, string symbol, int shares)
         {
             var price = await GetCurrentPrice(symbol);
-            Console.WriteLine(price.ToString());
-            Console.WriteLine(price.ToString());
-            Console.WriteLine(price.ToString());
-            Console.WriteLine(price.ToString());
-            Console.WriteLine(price.ToString());
+
 
             if (price == null || price == 0)
                 return false;  
