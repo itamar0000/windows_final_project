@@ -122,21 +122,3 @@
  ┗ 📄 .gitignore
     🔹 Hides bin/obj and secrets from git
 
-
-
-    email:
-    noamsolow@gmail.com
-
-    http://localhost:5000/swagger/index.html
-
-    https://somee.com
-    password:
-    noam2004
-    
-    https://chatgpt.com/
-    password:
-    noam2004
-
-    https://cloudinary.com/
-    cloudinary password:
-    dtdwVs_BjXv62Q9
