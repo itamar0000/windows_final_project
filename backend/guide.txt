@@ -11,7 +11,7 @@ Step 3: Install Dependencies
         pip install -r requirements.txt
 
 
-
+        3 
 chat gpt prompt:
 
 Help me with my Stock Portfolio Management System project for my Windows Systems Engineering course. The project involves creating a Desktop Application using PySide6 and integrating it with a .NET Core Application Server via CQRS/MVC patterns. 
