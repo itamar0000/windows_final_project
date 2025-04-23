@@ -55,6 +55,7 @@ from datetime import datetime
 from model import Transaction
 from datetime import datetime, timedelta  # Add the timedelta import
 from PySide6.QtCore import QDateTime
+from PySide6.QtWidgets import QProgressBar
 
 
 
@@ -1283,40 +1284,36 @@ class PortfolioView(QWidget):
 
     def update_stock_search_result(self, name: str, price: float, history: List[tuple]):
         """Display stock history chart and metrics in the search view."""
-
         if not history:
             self.search_info_label.setText(f"No data found for {name}.")
-            self.chart_view.setChart(QChart())  # clear chart view
+            self.chart_view.setChart(QChart())  # Clear chart
             return
 
-        # Sort and separate history
+        # Sort history by timestamp
         history.sort(key=lambda x: x[0])
         timestamps, values = zip(*history)
-        print(len(history))
-        print(len(history))
-        print(len(history))
-        print(len(history))
-        print(len(history))
-        # Convert to QLineSeries
+
+        # Build series
         series = QLineSeries()
         for dt, val in zip(timestamps, values):
             ts = QDateTime.fromSecsSinceEpoch(int(dt.timestamp()))
             series.append(ts.toMSecsSinceEpoch(), val)
 
-        # Chart creation
+        # Create chart
         chart = QChart()
         chart.setTitle(f"{name} Price Trend")
         chart.setTitleFont(QFont("Segoe UI", 15, QFont.Bold))
         chart.setTitleBrush(QColor("#FFFFFF"))
-        chart.setBackgroundBrush(QColor("#1E2026"))
+        chart.setBackgroundVisible(False)
+        chart.setBackgroundBrush(QBrush(QColor("#1E2026")))
         chart.setAnimationOptions(QChart.SeriesAnimations)
         chart.addSeries(series)
 
-        # X Axis (Date)
+        # X Axis
         x_axis = QDateTimeAxis()
         x_axis.setFormat("MMM dd, yyyy")
         x_axis.setLabelsColor(QColor("#FFFFFF"))
-        x_axis.setGridLineColor(QColor("#444"))
+        x_axis.setGridLineColor(QColor("#444444"))
         x_axis.setTitleText("Date")
         x_axis.setRange(
             QDateTime.fromSecsSinceEpoch(int(timestamps[0].timestamp())),
@@ -1325,12 +1322,12 @@ class PortfolioView(QWidget):
         chart.addAxis(x_axis, Qt.AlignBottom)
         series.attachAxis(x_axis)
 
-        # Y Axis (Price)
+        # Y Axis
         min_val, max_val = min(values), max(values)
         y_axis = QValueAxis()
         y_axis.setLabelFormat("$%.2f")
         y_axis.setLabelsColor(QColor("#FFFFFF"))
-        y_axis.setGridLineColor(QColor("#444"))
+        y_axis.setGridLineColor(QColor("#444444"))
         y_axis.setTitleText("Price")
         y_axis.setRange(min_val * 0.95, max_val * 1.05)
         chart.addAxis(y_axis, Qt.AlignLeft)
@@ -1338,35 +1335,32 @@ class PortfolioView(QWidget):
 
         # Apply to chart view
         self.chart_view.setChart(chart)
+        self.chart_view.setRenderHint(QPainter.Antialiasing)
+        self.chart_view.setAutoFillBackground(False)
+        self.chart_view.setStyleSheet("background: transparent; border: none;")
+        self.chart_view.setBackgroundBrush(QBrush(Qt.transparent))
 
         # Update info label
         self.search_info_label.setText(f"{name} - Current: ${price:.2f}")
 
-        # Calculate stats
+        # Calculate and format metrics
         first_price = values[0]
         last_price = values[-1]
         price_change = ((last_price - first_price) / first_price) * 100 if first_price else 0
-        high = max_val
-        low = min_val
-        volume = "1.2M"
-        market_cap = last_price * 1_000_000_000  # placeholder
+        market_cap = last_price * 1_000_000_000  # Placeholder
+        mc_display = (
+            f"${market_cap / 1e12:.2f}T" if market_cap >= 1e12 else
+            f"${market_cap / 1e9:.2f}B" if market_cap >= 1e9 else
+            f"${market_cap / 1e6:.2f}M"
+        )
 
-        # Format market cap nicely
-        if market_cap >= 1e12:
-            mc_display = f"${market_cap / 1e12:.2f}T"
-        elif market_cap >= 1e9:
-            mc_display = f"${market_cap / 1e9:.2f}B"
-        else:
-            mc_display = f"${market_cap / 1e6:.2f}M"
-
-        # Update metric display
         metrics = {
             "Current Price": f"${last_price:.2f}",
-            "52-Week High": f"${high:.2f}",
-            "52-Week Low": f"${low:.2f}",
+            "52-Week High": f"${max_val:.2f}",
+            "52-Week Low": f"${min_val:.2f}",
             "% Change": f"{price_change:+.2f}%",
             "Market Cap": mc_display,
-            "Volume": volume
+            "Volume": "1.2M"
         }
 
         for frame in self.stats_frames:
@@ -1379,16 +1373,14 @@ class PortfolioView(QWidget):
             value = metrics.get(key, "--")
             value_label.setText(value)
 
-            # Color code
-            if key == "% Change":
-                color = "#00C087" if price_change >= 0 else "#F6465D"
-            elif key == "52-Week High":
-                color = "#00C087"
-            elif key == "52-Week Low":
-                color = "#F6465D"
-            else:
-                color = "white"
-
+            # Color coding
+            color = (
+                "#00C087" if key == "% Change" and price_change >= 0 else
+                "#F6465D" if key == "% Change" and price_change < 0 else
+                "#00C087" if key == "52-Week High" else
+                "#F6465D" if key == "52-Week Low" else
+                "white"
+            )
             value_label.setStyleSheet(f"color: {color}; font-weight: bold;")
 
     def create_stock_search_section(self):
@@ -1915,196 +1907,293 @@ class LoginView(QWidget):
     def __init__(self):
         super().__init__()
         self.setup_ui()
+        
+        # Connect keyboard shortcuts
+        self.password_input.returnPressed.connect(self._handle_login_click)
+        self.username_input.returnPressed.connect(lambda: self.password_input.setFocus())
 
     def setup_ui(self):
-        # Main layout
-        layout = QVBoxLayout()
-        layout.setAlignment(Qt.AlignCenter)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        # Main layout with proper spacing
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         
-        # Create main container with proper background
-        main_container = QWidget()
-        main_container.setStyleSheet("""
-            QWidget {
-                background-color: #0C0D10;
-            }
+        # Set dark theme background
+        self.setStyleSheet("background-color: #0A0C10;")
+        
+        # Create a split layout with proper proportions
+        left_panel = QWidget()
+        right_panel = QWidget()
+        
+        # Left panel styling (marketing/branding side)
+        left_panel.setStyleSheet("""
+            background-color: #12141A;
         """)
         
-        main_layout = QHBoxLayout(main_container)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(15)
-        
-        # Left panel - Stats
-        stats_container = QFrame()
-        stats_container.setFixedWidth(500)
-        stats_container.setStyleSheet("""
-            QFrame {
-                background-color: #1E2026;
-                border-radius: 10px;
-            }
+        # Right panel styling (login form side)
+        right_panel.setStyleSheet("""
+            background-color: #12141A;
         """)
         
-        stats_layout = QVBoxLayout(stats_container)
-        stats_layout.setContentsMargins(30, 30, 30, 30)
-        stats_layout.setSpacing(25)
+        # Set up content for left panel (branding area)
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(50, 50, 50, 50)
+        left_layout.setSpacing(30)
         
-        # Main title for stats
-        main_title = QLabel("Never Miss a Beat, With Stock Portfolio")
-        main_title.setStyleSheet("font-size: 24px; font-weight: bold; color: white; margin-top: 15px;")
-        main_title.setWordWrap(True)
-        stats_layout.addWidget(main_title)
+        # Logo and name in header
+        header_layout = QHBoxLayout()
+        header_layout.setSpacing(12)
         
-        # Add spacer
-        stats_layout.addSpacing(10)
+        # Clean logo (would be better as SVG in production)
+        logo_icon = QLabel()
+        logo_pixmap = QPixmap(":/icons/chart.png")
+        if logo_pixmap.isNull():
+            # Fallback if image not available
+            logo_icon.setText("📈")
+            logo_icon.setStyleSheet("font-size: 28px;")
+        else:
+            logo_icon.setPixmap(logo_pixmap.scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         
-        # Trading value
+        # Brand name with simpler styling
+        brand_name = QLabel("STOCK<span style='color: #F0B90B;'>FOLIO</span>")
+        brand_name.setStyleSheet("""
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 0.5px;
+        """)
+        brand_name.setTextFormat(Qt.RichText)
+        
+        header_layout.addWidget(logo_icon)
+        header_layout.addWidget(brand_name)
+        header_layout.addStretch()
+        
+        left_layout.addLayout(header_layout)
+        
+        # Main marketing message
+        message_container = QWidget()
+        message_layout = QVBoxLayout(message_container)
+        message_layout.setContentsMargins(0, 0, 0, 0)
+        message_layout.setSpacing(12)
+        
+        # Headline with accent color
+        headline = QLabel("Your Portfolio,<br>Your <span style='color: #F0B90B;'>Future</span>")
+        headline.setTextFormat(Qt.RichText)
+        headline.setStyleSheet("""
+            font-size: 36px;
+            font-weight: 700;
+            color: white;
+            line-height: 1.2;
+        """)
+        
+        # Subtitle with good contrast
+        subtitle = QLabel("Track, analyze, and grow your investments in one place")
+        subtitle.setStyleSheet("""
+            font-size: 16px;
+            color: #B0B0B0;
+            margin-top: 5px;
+        """)
+        
+        message_layout.addWidget(headline)
+        message_layout.addWidget(subtitle)
+        
+        left_layout.addWidget(message_container)
+        
+        # Trading volume card - cleaner approach
+        trading_card = QWidget()
+        trading_card.setStyleSheet("""
+            background-color: #1A1D24;
+            border-radius: 8px;
+        """)
+        trading_layout = QVBoxLayout(trading_card)
+        trading_layout.setContentsMargins(24, 20, 24, 20)
+        trading_layout.setSpacing(8)
+        
+        trading_label = QLabel("24H TRADING VOLUME")
+        trading_label.setStyleSheet("""
+            font-size: 13px;
+            color: #8A8D93;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        """)
+        
         trading_value = QLabel("$14,755,026,601")
-        trading_value.setStyleSheet("font-size: 36px; font-weight: bold; color: #F0B90B;")
-        stats_layout.addWidget(trading_value)
-        
-        trading_label = QLabel("24H Trading Volume (USD)")
-        trading_label.setStyleSheet("font-size: 14px; color: #999999; margin-top: -5px;")
-        stats_layout.addWidget(trading_label)
-        
-        # Add spacer
-        stats_layout.addSpacing(30)
-        
-        # Stats grid with spacers
-        stats_grid = QHBoxLayout()
-        stats_grid.setSpacing(20)
-        
-        # Users stat
-        users_layout = QVBoxLayout()
-        users_layout.setSpacing(5)
-        users_value = QLabel("69M+")
-        users_value.setStyleSheet("font-size: 28px; font-weight: bold; color: #F0B90B;")
-        users_value.setAlignment(Qt.AlignCenter)
-        
-        users_label = QLabel("Registered Users")
-        users_label.setStyleSheet("font-size: 14px; color: #999999;")
-        users_label.setAlignment(Qt.AlignCenter)
-        
-        users_layout.addWidget(users_value)
-        users_layout.addWidget(users_label)
-        
-        # Countries stat
-        countries_layout = QVBoxLayout()
-        countries_layout.setSpacing(5)
-        countries_value = QLabel("160")
-        countries_value.setStyleSheet("font-size: 28px; font-weight: bold; color: #F0B90B;")
-        countries_value.setAlignment(Qt.AlignCenter)
-        
-        countries_label = QLabel("Supported Countries")
-        countries_label.setStyleSheet("font-size: 14px; color: #999999;")
-        countries_label.setAlignment(Qt.AlignCenter)
-        
-        countries_layout.addWidget(countries_value)
-        countries_layout.addWidget(countries_label)
-        
-        # Stocks stat
-        stocks_layout = QVBoxLayout()
-        stocks_layout.setSpacing(5)
-        stocks_value = QLabel("1862")
-        stocks_value.setStyleSheet("font-size: 28px; font-weight: bold; color: #F0B90B;")
-        stocks_value.setAlignment(Qt.AlignCenter)
-        
-        stocks_label = QLabel("Stocks Listed")
-        stocks_label.setStyleSheet("font-size: 14px; color: #999999;")
-        stocks_label.setAlignment(Qt.AlignCenter)
-        
-        stocks_layout.addWidget(stocks_value)
-        stocks_layout.addWidget(stocks_label)
-        
-        stats_grid.addLayout(users_layout)
-        stats_grid.addLayout(countries_layout)
-        stats_grid.addLayout(stocks_layout)
-        
-        stats_layout.addLayout(stats_grid)
-        
-        # Spacer before support info
-        stats_layout.addStretch(1)
-        
-        # Support info
-        support_layout = QHBoxLayout()
-        support_layout.setContentsMargins(0, 0, 0, 0)
-        
-        support_icon = QLabel("🎧")  # Headset icon
-        support_icon.setStyleSheet("font-size: 20px; color: white;")
-        
-        support_text = QLabel("24/7 Support | 100k TPS Matching Engine")
-        support_text.setStyleSheet("font-size: 14px; color: white;")
-        
-        support_layout.addWidget(support_icon)
-        support_layout.addWidget(support_text)
-        support_layout.addStretch()
-        
-        stats_layout.addLayout(support_layout)
-        
-        # Right panel - Login form
-        login_container = QFrame()
-        login_container.setFixedWidth(400)
-        login_container.setStyleSheet("""
-            QFrame {
-                background-color: #1E2026;
-                border-radius: 10px;
-            }
+        trading_value.setStyleSheet("""
+            font-size: 28px;
+            font-weight: 700;
+            color: #F0B90B;
         """)
         
-        form_layout = QVBoxLayout(login_container)
-        form_layout.setContentsMargins(30, 30, 30, 30)
-        form_layout.setSpacing(15)
+        trading_layout.addWidget(trading_label)
+        trading_layout.addWidget(trading_value)
         
-        # Welcome title
+        left_layout.addWidget(trading_card)
+        
+        # Stats grid - cleaner implementation
+        stats_grid = QGridLayout()
+        stats_grid.setSpacing(16)
+        
+        # Function to create clean stat cards
+        def create_stat_card(icon, value, label):
+            card = QWidget()
+            card.setStyleSheet("""
+                background-color: #1A1D24;
+                border-radius: 8px;
+            """)
+            
+            layout = QHBoxLayout(card)
+            layout.setContentsMargins(20, 16, 20, 16)
+            
+            # Icon with appropriate spacing
+            icon_label = QLabel(icon)
+            icon_label.setStyleSheet("""
+                font-size: 20px;
+                margin-right: 12px;
+            """)
+            
+            # Text container
+            text_container = QVBoxLayout()
+            text_container.setSpacing(2)
+            
+            # Value with emphasis
+            value_label = QLabel(value)
+            value_label.setStyleSheet("""
+                font-size: 18px;
+                font-weight: 700;
+                color: #F0B90B;
+            """)
+            
+            # Label with lower emphasis
+            desc_label = QLabel(label)
+            desc_label.setStyleSheet("""
+                font-size: 13px;
+                color: #8A8D93;
+            """)
+            
+            text_container.addWidget(value_label)
+            text_container.addWidget(desc_label)
+            
+            layout.addWidget(icon_label)
+            layout.addLayout(text_container)
+            layout.addStretch()
+            
+            return card
+        
+        # Create stat cards with clean design
+        users_card = create_stat_card("👥", "69M+", "Registered Users")
+        countries_card = create_stat_card("🌎", "160+", "Supported Countries")
+        stocks_card = create_stat_card("📊", "1,862", "Stocks Listed")
+        security_card = create_stat_card("🔒", "100%", "Secure Trading")
+        
+        # Add cards to grid
+        stats_grid.addWidget(users_card, 0, 0)
+        stats_grid.addWidget(countries_card, 0, 1)
+        stats_grid.addWidget(stocks_card, 1, 0)
+        stats_grid.addWidget(security_card, 1, 1)
+        
+        left_layout.addLayout(stats_grid)
+        
+        # Footer with support info
+        support_label = QLabel("24/7 Support | 100k TPS Matching Engine")
+        support_label.setStyleSheet("""
+            font-size: 14px;
+            color: #8A8D93;
+            margin-top: 10px;
+        """)
+        
+        left_layout.addStretch()
+        left_layout.addWidget(support_label, alignment=Qt.AlignCenter)
+        
+        # Set up content for right panel (login form)
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(50, 40, 50, 40)  # Proper margins all around
+        right_layout.setSpacing(0)
+        
+        # Center the form with proper spacing
+        form_container = QWidget()
+        form_layout = QVBoxLayout(form_container)
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Login form with clean styling
+        login_form = QWidget()
+        login_form.setFixedWidth(360)
+        
+        login_layout = QVBoxLayout(login_form)
+        login_layout.setContentsMargins(0, 0, 0, 0)
+        login_layout.setSpacing(24)
+        
+        # Form title
         title = QLabel("Stock Portfolio Manager")
         title.setStyleSheet("""
-            font-size: 24px; 
-            font-weight: bold; 
-            color: white; 
-            margin-bottom: 15px;
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
         """)
+        title.setAlignment(Qt.AlignCenter)
         
         # Subtitle
-        subtitle = QLabel("Sign in to manage your investments")
-        subtitle.setStyleSheet("font-size: 14px; color: #999999; margin-bottom: 15px;")
+        login_subtitle = QLabel("Sign in to manage your investments")
+        login_subtitle.setStyleSheet("""
+            font-size: 15px;
+            color: #8A8D93;
+        """)
+        login_subtitle.setAlignment(Qt.AlignCenter)
         
-        # Username Field
+        # Form fields container
+        fields_container = QWidget()
+        fields_layout = QVBoxLayout(fields_container)
+        fields_layout.setContentsMargins(0, 0, 0, 0)
+        fields_layout.setSpacing(16)
+        
+        # Username field with clean design
         username_label = QLabel("Username")
-        username_label.setStyleSheet("font-size: 14px; color: #999999; margin-top: 10px;")
+        username_label.setStyleSheet("""
+            font-size: 14px;
+            color: #C0C0C0;
+            font-weight: 500;
+            margin-bottom: 6px;
+        """)
         
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Enter your username")
         self.username_input.setStyleSheet("""
             QLineEdit {
-                padding: 12px;
-                border: 1px solid #2A2D35;
+                padding: 12px 16px;
+                background-color: #1A1D24;
+                border: none;
                 border-radius: 6px;
-                background-color: #2A2D35;
                 color: white;
                 font-size: 14px;
             }
             QLineEdit:focus {
-                border-color: #F0B90B;
+                background-color: #1D2128;
+                border: 1px solid #F0B90B;
+                padding: 11px 15px;
             }
         """)
         
-        # Password Field
+        # Password field with clean design
         password_label = QLabel("Password")
-        password_label.setStyleSheet("font-size: 14px; color: #999999; margin-top: 5px;")
+        password_label.setStyleSheet("""
+            font-size: 14px;
+            color: #C0C0C0;
+            font-weight: 500;
+            margin-bottom: 6px;
+        """)
         
-        password_container = QHBoxLayout()
-        password_container.setContentsMargins(0, 0, 0, 0)
-        password_container.setSpacing(0)
-        
+        password_input_container = QHBoxLayout()
+        password_input_container.setContentsMargins(0, 0, 0, 0)
+        password_input_container.setSpacing(0)
+
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Enter your password")
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setStyleSheet("""
             QLineEdit {
-                padding: 12px;
+                padding: 12px 40px 12px 16px; /* Extra right padding for the button */
+                background-color: #1A1D24;
                 border: 1px solid #2A2D35;
                 border-radius: 6px;
-                background-color: #2A2D35;
                 color: white;
                 font-size: 14px;
             }
@@ -2112,50 +2201,90 @@ class LoginView(QWidget):
                 border-color: #F0B90B;
             }
         """)
-        
-        self.show_password_btn = QPushButton("👁")
-        self.show_password_btn.setFixedSize(32, 32)
+
+
+                
+        # Password visibility toggle
+        self.show_password_btn = QPushButton("👁")  # Clear text icon instead of using QIcon
+        self.show_password_btn.setFixedSize(36, 36)
+        self.show_password_btn.setCursor(Qt.PointingHandCursor)
         self.show_password_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2A2D35;
-                border: 1px solid #2A2D35;
-                border-radius: 16px;  /* half of 32 = perfect circle */
-                color: #999999;
-                font-size: 16px;
-                padding-left: 0px;  /* tiny push to the right INSIDE the button */
+                border: none;
+                color: #8A8D93;
+                font-size: 18px;
+                border-radius: 18px;
+                margin-left: 0px;
             }
             QPushButton:hover {
                 color: #F0B90B;
+                background-color: #34373F;
             }
         """)
 
 
         self.show_password_btn.pressed.connect(lambda: self.password_input.setEchoMode(QLineEdit.Normal))
         self.show_password_btn.released.connect(lambda: self.password_input.setEchoMode(QLineEdit.Password))
+
         
-        password_container.addWidget(self.password_input)
-        password_container.addWidget(self.show_password_btn)
-        
-        # Forgot Password link
-        self.forgot_password_label = QLabel("<a href='#'>Forgot Password?</a>")
-        self.forgot_password_label.setStyleSheet("font-size: 14px; color: #F0B90B; text-decoration: none;")
+        password_input_container.addWidget(self.password_input)
+        password_input_container.addWidget(self.show_password_btn)
+
+
+        # Forgot password link
+        self.forgot_password_label = QLabel("<a href='#' style='color: #F0B90B; text-decoration: none;'>Forgot Password?</a>")
+        self.forgot_password_label.setStyleSheet("""
+            font-size: 14px;
+            padding: 4px 0;
+        """)
         self.forgot_password_label.setAlignment(Qt.AlignRight)
+        self.forgot_password_label.setCursor(Qt.PointingHandCursor)
         self.forgot_password_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self.forgot_password_label.setOpenExternalLinks(False)
         self.forgot_password_label.linkActivated.connect(self._handle_forgot_password)
         
-        # Login Button
+        # Error message area
+        self.error_label = QLabel()
+        self.error_label.setStyleSheet("""
+            font-size: 14px;
+            color: #FF6B6B;
+            background-color: rgba(255, 107, 107, 0.1);
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 6px;
+        """)
+        self.error_label.setWordWrap(True)
+        self.error_label.hide()
+        
+        # Add username and password fields to form
+        username_container = QVBoxLayout()
+        username_container.setSpacing(4)
+        username_container.addWidget(username_label)
+        username_container.addWidget(self.username_input)
+        
+        password_container = QVBoxLayout()
+        password_container.setSpacing(4)
+        password_container.addWidget(password_label)
+        password_container.addLayout(password_input_container)
+        password_container.addWidget(self.forgot_password_label)
+        
+        fields_layout.addLayout(username_container)
+        fields_layout.addLayout(password_container)
+        fields_layout.addWidget(self.error_label)
+        
+        # Login button with clean design
         login_button = QPushButton("LOGIN")
         login_button.setCursor(Qt.PointingHandCursor)
         login_button.setStyleSheet("""
             QPushButton {
                 background-color: #F0B90B;
-                color: black;
+                color: #000000;
                 padding: 12px;
                 border-radius: 6px;
                 font-size: 16px;
-                font-weight: bold;
-                margin-top: 5px;
+                font-weight: 600;
+                border: none;
             }
             QPushButton:hover {
                 background-color: #F8C032;
@@ -2166,9 +2295,16 @@ class LoginView(QWidget):
         """)
         login_button.clicked.connect(self._handle_login_click)
         
-        # Sign Up text and button
+        # Sign up area
+        signup_container = QVBoxLayout()
+        signup_container.setSpacing(16)
+        signup_container.setContentsMargins(0, 16, 0, 0)
+        
         signup_text = QLabel("Don't have an account?")
-        signup_text.setStyleSheet("font-size: 14px; color: #999999;")
+        signup_text.setStyleSheet("""
+            font-size: 14px;
+            color: #8A8D93;
+        """)
         signup_text.setAlignment(Qt.AlignCenter)
         
         signup_button = QPushButton("SIGN UP")
@@ -2179,118 +2315,113 @@ class LoginView(QWidget):
                 color: #F0B90B;
                 padding: 12px;
                 border-radius: 6px;
-                border: 2px solid #F0B90B;
                 font-size: 16px;
-                font-weight: bold;
+                font-weight: 600;
+                border: 1px solid #F0B90B;
             }
             QPushButton:hover {
-                background-color: rgba(240, 185, 11, 0.1);
+                background-color: rgba(240, 185, 11, 0.08);
             }
             QPushButton:pressed {
-                background-color: rgba(240, 185, 11, 0.2);
+                background-color: rgba(240, 185, 11, 0.15);
             }
         """)
         signup_button.clicked.connect(self._handle_signup_click)
         
-        # Error message label (hidden by default)
-        self.error_label = QLabel()
-        self.error_label.setStyleSheet("""
-            font-size: 14px;
-            color: #FF4D4F;
-            background-color: rgba(255, 77, 79, 0.1);
-            padding: 8px;
-            border-radius: 4px;
-            border-left: 4px solid #FF4D4F;
-        """)
-        self.error_label.setAlignment(Qt.AlignCenter)
-        self.error_label.setWordWrap(True)
-        self.error_label.hide()
+        signup_container.addWidget(signup_text)
+        signup_container.addWidget(signup_button)
         
-        # Add form widgets to layout
-        form_layout.addWidget(title, alignment=Qt.AlignCenter)
-        form_layout.addWidget(subtitle, alignment=Qt.AlignCenter)
-        form_layout.addWidget(username_label)
-        form_layout.addWidget(self.username_input)
-        form_layout.addWidget(password_label)
-        form_layout.addLayout(password_container)
-        form_layout.addWidget(self.forgot_password_label)
-        form_layout.addWidget(self.error_label)
-        form_layout.addWidget(login_button)
-        form_layout.addSpacing(10)
-        form_layout.addWidget(signup_text, alignment=Qt.AlignCenter)
-        form_layout.addWidget(signup_button)
-        form_layout.addStretch()
+        # Assemble form components
+        login_layout.addWidget(title)
+        login_layout.addWidget(login_subtitle)
+        login_layout.addWidget(fields_container)
+        login_layout.addSpacing(8)
+        login_layout.addWidget(login_button)
+        login_layout.addLayout(signup_container)
         
-        # Add both panels to main layout
-        main_layout.addWidget(stats_container)
-        main_layout.addWidget(login_container)
+        # Center the form in the right panel
+        right_layout.addStretch(1)
+        right_layout.addWidget(login_form, 0, Qt.AlignCenter)
+        right_layout.addStretch(1)
         
-        # Add the main container to the overall layout
-        layout.addWidget(main_container)
-        self.setLayout(layout)
+        # Add panels to main layout with appropriate proportions
+        main_layout.addWidget(left_panel, 1)  # 50% width
+        main_layout.addWidget(right_panel, 1)  # 50% width
         
-        # Set font family for the entire application
+        # Set system font stack
         self.setStyleSheet("""
             * {
-                font-family: 'Segoe UI', Arial, sans-serif;
+                font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
             }
         """)
+
         
-        # Set tab order for keyboard navigation
+        # Set proper tab order
         QWidget.setTabOrder(self.username_input, self.password_input)
         QWidget.setTabOrder(self.password_input, login_button)
         QWidget.setTabOrder(login_button, signup_button)
-
+    
     def show_error(self, message):
-        """Shows error message on failed login attempts"""
+        """Shows error message with cleaner styling"""
         self.error_label.setText(message)
         self.error_label.show()
-        
+    
     def clear_error(self):
         """Clears error message"""
         self.error_label.hide()
-
+    
     def clear_inputs(self):
-        """Clears the username and password fields after login."""
+        """Clears the username and password fields"""
         self.username_input.clear()
         self.password_input.clear()
         self.clear_error()
-
+    
     def _handle_login_click(self):
-        """Emits login request signal with username and password."""
-        username, password = self.username_input.text(), self.password_input.text()
+        """Handles login button click with improved validation"""
+        username = self.username_input.text().strip()
+        password = self.password_input.text()
         
-        # Basic validation
-        if not username or not password:
-            self.show_error("Please enter both username and password")
-            return
-            
-        self.clear_error()
-        self.login_requested.emit(username, password)
-
+        if not username and not password:
+            self.show_error("Please enter your username and password")
+        elif not username:
+            self.show_error("Please enter your username")
+            self.username_input.setFocus()
+        elif not password:
+            self.show_error("Please enter your password")
+            self.password_input.setFocus()
+        else:
+            self.clear_error()
+            self.login_requested.emit(username, password)
+    
     def _handle_signup_click(self):
-        """Emits signup request signal with username and password."""
-        username, password = self.username_input.text(), self.password_input.text()
+        """Handles signup button click with validation"""
+        username = self.username_input.text().strip()
+        password = self.password_input.text()
         
-        # Basic validation
-        if not username or not password:
-            self.show_error("Please enter both username and password to sign up")
-            return
-            
-        self.clear_error()
-        self.signup_requested.emit(username, password)
-
+        if not username and not password:
+            self.show_error("Please enter a username and password to create your account")
+        elif not username:
+            self.show_error("Please enter a username")
+            self.username_input.setFocus()
+        elif not password:
+            self.show_error("Please enter a password")
+            self.password_input.setFocus()
+        elif len(password) < 8:
+            self.show_error("Your password must be at least 8 characters long")
+            self.password_input.setFocus()
+        else:
+            self.clear_error()
+            self.signup_requested.emit(username, password)
+    
     def _handle_forgot_password(self):
-        """Emits forgot password request signal."""
-        username = self.username_input.text()
+        """Handles forgot password link click"""
+        username = self.username_input.text().strip()
         if not username:
-            self.show_error("Please enter your username to reset password")
-            return
-            
-        self.clear_error()
-        self.forgot_password_requested.emit(username)
-
-
+            self.show_error("Please enter your username to reset your password")
+            self.username_input.setFocus()
+        else:
+            self.clear_error()
+            self.forgot_password_requested.emit(username)
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -2381,6 +2512,10 @@ class MainWindow(QMainWindow):
         self.toolbar.setVisible(False)
         self.addToolBar(self.toolbar)
 
+        self.loading_overlay = LoadingOverlay(self)
+        self.loading_overlay.hide()
+
+
 
     def set_profile_preset(self, index: int):
         if self.current_user_id is None:
@@ -2406,27 +2541,24 @@ class MainWindow(QMainWindow):
             print("Preset error:", e)
 
     def show_loading_message(self, message="Processing..."):
-        """Shows a simple loading message in the status bar"""
-        self.statusBar().showMessage(message)
-        # Make the cursor show the busy indicator
+        self.loading_overlay.set_message(message)
+        self.loading_overlay.switch_to_indeterminate()
+        self.loading_overlay.show()
         QApplication.setOverrideCursor(Qt.WaitCursor)
-        # Force UI update
         QApplication.processEvents()
 
     def hide_loading_message(self):
-        """Hides the loading message"""
-        self.statusBar().clearMessage()
-        # Restore the normal cursor
+        self.loading_overlay.hide()
         QApplication.restoreOverrideCursor()
-        # Force UI update
         QApplication.processEvents()
+
 
     def handle_login(self, username, password):
         """Handle login with loading indicator"""
         self.show_loading_message(f"Logging in as {username}...")
         
         # Use a timer to simulate network delay and allow UI to update
-        QTimer.singleShot(1000, lambda: self._process_login(username, password))
+        QTimer.singleShot(2000, lambda: self._process_login(username, password))
 
     def _process_login(self, username, password):
         """Process the actual login after showing loading indicator"""
@@ -2445,7 +2577,7 @@ class MainWindow(QMainWindow):
         self.show_loading_message(f"Creating account for {username}...")
         
         # Use a timer to simulate network delay and allow UI to update
-        QTimer.singleShot(1500, lambda: self._process_signup(username, password))
+        QTimer.singleShot(2000, lambda: self._process_login(username, password))
 
     def _process_signup(self, username, password):
         """Process the actual signup after showing loading indicator"""
@@ -2455,11 +2587,9 @@ class MainWindow(QMainWindow):
         self.show_portfolio("user123")  # Always succeed for demo
 
     def handle_trade(self, action, symbol, shares):
-        """Handle trade with loading indicator"""
         self.show_loading_message(f"{action.capitalize()}ing {shares} shares of {symbol}...")
-        
-        # Use a timer to simulate network delay and allow UI to update
-        QTimer.singleShot(1000, lambda: self._process_trade(action, symbol, shares))
+        QTimer.singleShot(2000, lambda: self._process_trade(action, symbol, shares))
+
 
     def _process_trade(self, action, symbol, shares):
         """Process the actual trade after showing loading indicator"""
@@ -2591,40 +2721,236 @@ class MainWindow(QMainWindow):
     def open_ai_chat_dialog(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("AI Chat Assistant")
-        dialog.setMinimumSize(500, 400)
+        dialog.setMinimumSize(600, 500)
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #0C0D10;
+            }
+        """)
 
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(15, 15, 15, 15)
+        layout.setSpacing(10)
 
-        # Message area
-        self.chat_display = QLabel("🤖 How can I help you today?")
-        self.chat_display.setWordWrap(True)
-        self.chat_display.setStyleSheet("font-size: 14px; padding: 10px; background-color: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 6px;")
-        layout.addWidget(self.chat_display)
+        # Chat display area
+        self.chat_history = QLabel()
+        self.chat_history.setWordWrap(True)
+        self.chat_history.setAlignment(Qt.AlignTop)
+        self.chat_history.setStyleSheet("""
+            QLabel {
+                background-color: #1A1D24;
+                border: 1px solid #2C313A;
+                padding: 15px;
+                border-radius: 10px;
+                font-size: 14px;
+                color: #F0F0F0;
+            }
+        """)
+        self.chat_history.setText("🤖 <b>AI Advisor:</b> How can I assist you with your portfolio today?")
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("QScrollArea { background-color: transparent; border: none; }")
+        scroll_area.setWidget(self.chat_history)
 
-        # Input
+        layout.addWidget(scroll_area, 5)
+
+        # Input layout
         input_layout = QHBoxLayout()
+        input_layout.setSpacing(10)
+
         self.chat_input = QLineEdit()
-        self.chat_input.setPlaceholderText("Type your question...")
+        self.chat_input.setPlaceholderText("Ask about stocks, performance, trends...")
+        self.chat_input.setStyleSheet("""
+            QLineEdit {
+                padding: 10px 15px;
+                font-size: 14px;
+                color: white;
+                background-color: #1E2026;
+                border: 1px solid #2C313A;
+                border-radius: 6px;
+            }
+            QLineEdit:focus {
+                border-color: #F0B90B;
+            }
+        """)
+
         send_btn = QPushButton("Send")
-        send_btn.clicked.connect(self.handle_ai_message)
-        input_layout.addWidget(self.chat_input)
-        input_layout.addWidget(send_btn)
+        send_btn.setCursor(Qt.PointingHandCursor)
+        send_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #F0B90B;
+                color: black;
+                font-weight: bold;
+                font-size: 14px;
+                padding: 10px 20px;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #F8C032;
+            }
+        """)
+        send_btn.clicked.connect(lambda: self.handle_ai_message(dialog))
 
-        layout.addLayout(input_layout)
+        input_layout.addWidget(self.chat_input, 4)
+        input_layout.addWidget(send_btn, 1)
 
-        dialog.setLayout(layout)
+        layout.addLayout(input_layout, 1)
         dialog.exec()
 
-    def handle_ai_message(self):
+    def handle_ai_message(self, dialog=None):
         question = self.chat_input.text().strip()
         if not question:
             return
 
-        # Simulate AI reply (you can later plug in real backend)
-        response = f"🤖 You said: {question}"
+        # Simulate AI response
+        answer = f"I'm analyzing your query: <i>{question}</i>... Here's what I think 📊"
 
-        self.chat_display.setText(response)
+        # Append to chat history
+        current_text = self.chat_history.text()
+        new_entry = f"""
+            <p style='margin-top: 10px;'><b>You:</b> {question}</p>
+            <p><b>🤖 AI Advisor:</b> {answer}</p>
+        """
+        self.chat_history.setText(current_text + new_entry)
         self.chat_input.clear()
 
+        # Scroll to bottom
+        dialog.findChild(QScrollArea).verticalScrollBar().setValue(
+            dialog.findChild(QScrollArea).verticalScrollBar().maximum()
+        )
 
+
+
+class LoadingOverlay(QWidget):
+    """Creates an overlay with a loading spinner and optional text."""
+    
+    def __init__(self, parent=None, message="Loading..."):
+        super().__init__(parent)
+        
+        # Make the widget cover the parent
+        self.setParent(parent)
+        self.resize(parent.size())
+        self.move(0, 0)
+        
+        # Semi-transparent background
+        self.setStyleSheet("""
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+        """)
+        
+        # Create layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignCenter)
+        
+        # Container for spinner and message
+        container = QWidget()
+        container.setMaximumWidth(300)
+        container.setMaximumHeight(150)
+        container.setStyleSheet("""
+            background-color: #1E2026;
+            border-radius: 10px;
+            border: 1px solid #2C313A;
+        """)
+        
+        container_layout = QVBoxLayout(container)
+        container_layout.setContentsMargins(20, 20, 20, 20)
+        container_layout.setSpacing(15)
+        container_layout.setAlignment(Qt.AlignCenter)
+        
+        # Progress Bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)  # Determinate range
+        self.progress_bar.setValue(0)
+        self.progress_value = 0
+        self.progress_direction = 1
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setMinimumWidth(200)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #2A2D35;
+                border-radius: 6px;
+                background-color: #2A2D35;
+                height: 10px;
+            }
+            
+            QProgressBar::chunk {
+                background-color: #F0B90B;
+                border-radius: 5px;
+            }
+        """)
+        
+        # Message Label
+        self.message_label = QLabel(message)
+        self.message_label.setAlignment(Qt.AlignCenter)
+        self.message_label.setStyleSheet("""
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        """)
+        
+        # Add to container
+        container_layout.addWidget(self.progress_bar)
+        container_layout.addWidget(self.message_label)
+        
+        # Add container to main layout
+        layout.addWidget(container)
+        
+        # Create a timer to pulse the progress bar
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_progress)
+        self.timer.start(100)  # Update every 100ms
+        self.progress_value = 0
+        self.progress_direction = 1
+        
+        # Make overlay visible on top
+        self.setWindowFlags(Qt.Widget | Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+        
+        # Show the overlay
+        QTimer.singleShot(0, self.center_overlay)
+
+    def update_progress(self):
+        self.progress_value += self.progress_direction * 3  # Speed multiplier
+
+        if self.progress_value >= 100:
+            self.progress_direction = -1
+        elif self.progress_value <= 0:
+            self.progress_direction = 1
+
+        self.progress_bar.setValue(self.progress_value)
+
+
+    
+    def set_progress(self, value, maximum=100):
+        """Set determinate progress."""
+        self.progress_bar.setRange(0, maximum)
+        self.progress_bar.setValue(value)
+    
+    def set_message(self, message):
+        """Update the message."""
+        self.message_label.setText(message)
+    
+    def switch_to_indeterminate(self):
+        """Switch to indeterminate mode."""
+        self.progress_bar.setRange(0, 0)
+    
+    def switch_to_determinate(self, maximum=100):
+        """Switch to determinate mode."""
+        self.progress_bar.setRange(0, maximum)
+        self.progress_value = 0
+        self.progress_direction = 1
+    
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        QTimer.singleShot(0, self.center_overlay)
+
+    def center_overlay(self):
+        if self.parent():
+            self.resize(self.parent().size())
+            self.move(0, 0)
+            self.raise_()
 
