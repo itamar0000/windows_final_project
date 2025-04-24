@@ -21,9 +21,6 @@ def main():
         window.portfolio_presenter.load_portfolio()
         window.show_portfolio(user_id)
 
-
-
-
     window.login_view.login_successful.connect(on_login_success)
 
     # Show window

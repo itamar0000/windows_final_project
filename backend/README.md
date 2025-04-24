@@ -121,3 +121,4 @@
  ┃ 🔹 Project summary & setup instructions
  ┗ 📄 .gitignore
     🔹 Hides bin/obj and secrets from git
+
