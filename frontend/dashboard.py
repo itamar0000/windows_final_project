@@ -294,7 +294,7 @@ class PortfolioView(QWidget):
             QLabel {
                 color: #00C087;
                 font-size: 24px;
-                margin-right: -8px;
+                margin-right: -0px;
             }
         """)
         
