@@ -27,9 +27,7 @@ namespace backend
             builder.Services.AddScoped<PortfolioService>();
             builder.Services.AddScoped<StockService>();
             builder.Services.AddScoped<ImageService>();
-            builder.Services.AddScoped<AiAdvisorService>();
-
-
+            builder.Services.AddHttpClient<AiAdvisorService>();
 
             builder.Services.AddSingleton(_ =>
             {

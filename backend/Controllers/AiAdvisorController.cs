@@ -8,26 +8,23 @@ namespace backend.Controllers
     [Route("api/[controller]")]
     public class AiAdvisorController : ControllerBase
     {
-        private readonly AiAdvisorService _advisor;
+        private readonly AiAdvisorService _aiAdvisorService;
 
-        public AiAdvisorController(AiAdvisorService advisor)
+        public AiAdvisorController(AiAdvisorService aiAdvisorService)
         {
-            _advisor = advisor;
+            _aiAdvisorService = aiAdvisorService;
         }
 
         [HttpPost("ask")]
-        public async Task<IActionResult> AskQuestion([FromBody] AiQuestionRequest request)
+        public async Task<IActionResult> Ask([FromBody] AiQuestionRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.Question))
-                return BadRequest("Question cannot be empty.");
-
-            var answer = await _advisor.AskQuestionAsync(request.Question);
+            var answer = await _aiAdvisorService.AskQuestionAsync(request.Question);
             return Ok(new { response = answer });
         }
     }
 
     public class AiQuestionRequest
     {
-        public string Question { get; set; } = string.Empty;
+        public string Question { get; set; }
     }
 }
