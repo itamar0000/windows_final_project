@@ -52,42 +52,127 @@
 //}
 using System.Text.Json;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Data.Sqlite;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System;
 
 public class AiAdvisorService
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<AiAdvisorService> _logger;
-    private readonly IVectorStore _vectorStore; // Interface for your vector store
+    private readonly List<DocumentVector> _vectors = new();
+    private readonly string _vectorFilePath;
 
-    public AiAdvisorService(HttpClient httpClient, ILogger<AiAdvisorService> logger, IVectorStore vectorStore)
+    public AiAdvisorService(HttpClient httpClient, ILogger<AiAdvisorService> logger, IConfiguration configuration)
     {
         _httpClient = httpClient;
-        _httpClient.Timeout = TimeSpan.FromMinutes(2); // Increase timeout
+        _httpClient.Timeout = TimeSpan.FromMinutes(2);
         _logger = logger;
-        _vectorStore = vectorStore;
+        _vectorFilePath = configuration["VectorStorage:FilePath"] ?? "C:/halonot2.0/ollama_embedding/chroma.sqlite3";
+
+        // Load vectors from Chroma DB
+        LoadVectors();
     }
 
-    public async Task<string> AskQuestionAsync(string question, int topK = 3)
+    private void LoadVectors()
+    {
+        LoadVectorsFromChromaDb(_vectorFilePath);
+    }
+
+    private void LoadVectorsFromChromaDb(string sqlitePath)
     {
         try
         {
-            // Step 1: Retrieve relevant context using the question
-            var relevantDocs = await _vectorStore.SearchAsync(question, topK);
+            if (!File.Exists(sqlitePath))
+            {
+                _logger.LogWarning("Chroma DB not found at {path}", sqlitePath);
+                return;
+            }
 
-            // Step 2: Format context into a string
-            string context = FormatContextFromDocs(relevantDocs);
+            string connectionString = $"Data Source={sqlitePath};Mode=ReadOnly;";
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
 
-            // Step 3: Construct prompt with context and question
-            string prompt = $@"I have the following information:
+            var command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT e.id, d.document, e.embedding
+                FROM embedding e
+                JOIN documents d ON e.document_id = d.id
+            ";
 
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                string id = reader.GetString(0);
+                string content = reader.GetString(1);
+                byte[] blob = (byte[])reader["embedding"];
+                float[] embedding = BytesToFloatArray(blob);
+
+                _vectors.Add(new DocumentVector
+                {
+                    Id = id,
+                    Content = content,
+                    Embedding = embedding
+                });
+            }
+
+            _logger.LogInformation("Loaded {count} vectors from Chroma DB", _vectors.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load vectors from Chroma DB");
+        }
+    }
+
+    private float[] BytesToFloatArray(byte[] bytes)
+    {
+        if (bytes.Length % 4 != 0)
+            throw new InvalidDataException("Invalid float array byte length");
+
+        int count = bytes.Length / 4;
+        float[] floats = new float[count];
+
+        for (int i = 0; i < count; i++)
+            floats[i] = BitConverter.ToSingle(bytes, i * 4);
+
+        return floats;
+    }
+
+    public async Task<string> AskQuestionAsync(string question)
+    {
+        try
+        {
+            var relevantDocuments = FindRelevantDocuments(question, topK: 3);
+            string context = string.Join("\n\n", relevantDocuments.Select(d => d.Content));
+
+            string prompt = $@"
+You are a financial advisor AI.
+
+Use the following CONTEXT to answer the QUESTION.
+
+### CONTEXT:
 {context}
 
-Based on this information, please answer the question: {question}";
+### QUESTION:
+{question}
 
-            _logger.LogInformation("Using RAG with {count} relevant documents", relevantDocs.Count);
+### INSTRUCTIONS:
+- Only answer based on the context provided.
+- If the context does not contain the answer, say: 'The provided context does not include information about this question.'
+- Be clear, structured, and professional in your answer.
+- Start answering directly without repeating the question.
 
-            // Step 4: Send to Ollama with the enhanced prompt
+### ANSWER:
+";
+
+
+            _logger.LogInformation("Sending request to Ollama API with RAG context");
+
             var request = new
             {
                 model = "gemma:2b",
@@ -95,7 +180,6 @@ Based on this information, please answer the question: {question}";
                 stream = false
             };
 
-            _logger.LogInformation("Sending request to Ollama API with RAG context");
             var content = new StringContent(
                 JsonSerializer.Serialize(request),
                 Encoding.UTF8,
@@ -105,59 +189,77 @@ Based on this information, please answer the question: {question}";
             response.EnsureSuccessStatusCode();
             var responseBody = await response.Content.ReadAsStringAsync();
 
-            // Parse the actual Ollama response format
             using var jsonDoc = JsonDocument.Parse(responseBody);
             return jsonDoc.RootElement.GetProperty("response").GetString() ??
                    "No response content received from AI service.";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error communicating with Ollama API or vector store");
+            _logger.LogError(ex, "Error communicating with Ollama API");
             return "AI service error: " + ex.Message;
         }
     }
 
-    private string FormatContextFromDocs(List<Document> documents)
+    private List<DocumentVector> FindRelevantDocuments(string query, int topK)
     {
-        var sb = new StringBuilder();
+        if (_vectors.Count == 0)
+            return new List<DocumentVector>();
 
-        for (int i = 0; i < documents.Count; i++)
+        try
         {
-            sb.AppendLine($"Document {i + 1}:");
-            sb.AppendLine(documents[i].Content);
-            sb.AppendLine();
+            float[] queryEmbedding = GetQueryEmbedding(query);
+
+            var similarities = _vectors.Select(doc => new
+            {
+                Document = doc,
+                Score = CosineSimilarity(queryEmbedding, doc.Embedding)
+            })
+            .OrderByDescending(x => x.Score)
+            .Take(topK)
+            .ToList();
+
+            _logger.LogInformation("Found {count} similar documents", similarities.Count);
+            return similarities.Select(s => s.Document).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finding relevant documents");
+            return new List<DocumentVector>();
+        }
+    }
+
+    private float[] GetQueryEmbedding(string query)
+    {
+        // Placeholder - replace with real embedding logic
+        return new float[384];
+    }
+
+    private float CosineSimilarity(float[] vecA, float[] vecB)
+    {
+        if (vecA.Length != vecB.Length)
+            throw new ArgumentException("Vectors must be of the same length");
+
+        float dotProduct = 0;
+        float magnitudeA = 0;
+        float magnitudeB = 0;
+
+        for (int i = 0; i < vecA.Length; i++)
+        {
+            dotProduct += vecA[i] * vecB[i];
+            magnitudeA += vecA[i] * vecA[i];
+            magnitudeB += vecB[i] * vecB[i];
         }
 
-        return sb.ToString();
+        magnitudeA = (float)Math.Sqrt(magnitudeA);
+        magnitudeB = (float)Math.Sqrt(magnitudeB);
+
+        return magnitudeA == 0 || magnitudeB == 0 ? 0 : dotProduct / (magnitudeA * magnitudeB);
     }
 }
 
-// Interface for your vector store implementation
-public interface IVectorStore
-{
-    Task<List<Document>> SearchAsync(string query, int topK = 3);
-}
-
-// Simple document model - adjust to match your actual implementation
-public class Document
+public class DocumentVector
 {
     public string Id { get; set; }
     public string Content { get; set; }
     public float[] Embedding { get; set; }
-}
-
-// Sample implementation - replace with your actual vector store implementation
-public class YourVectorStore : IVectorStore
-{
-    // This is where you would implement your vector similarity search
-    // using the embeddings you've already created
-    public async Task<List<Document>> SearchAsync(string query, int topK = 3)
-    {
-        // 1. Generate embedding for the query
-        // 2. Find most similar vectors to the query embedding
-        // 3. Return the corresponding documents
-
-        // This is just a placeholder - implement your actual vector search logic
-        throw new NotImplementedException("Implement your vector search logic here");
-    }
 }
