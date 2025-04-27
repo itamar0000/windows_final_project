@@ -1,56 +1,4 @@
-﻿//using System.Text.Json;
-//using System.Text;
-
-//public class AiAdvisorService
-//{
-//    private readonly HttpClient _httpClient;
-//    private readonly ILogger<AiAdvisorService> _logger;
-
-//    public AiAdvisorService(HttpClient httpClient, ILogger<AiAdvisorService> logger)
-//    {
-//        _httpClient = httpClient;
-//        _httpClient.Timeout = TimeSpan.FromMinutes(2); // Increase timeout
-//        _logger = logger;
-//    }
-
-//    public async Task<string> AskQuestionAsync(string question)
-//    {
-//        try
-//        {
-//            // This matches Ollama's actual API format
-//            var request = new
-//            {
-//                model = "gemma:2b",
-//                prompt = question,
-//                stream = false // Set to false to get a complete response
-//            };
-
-//            _logger.LogInformation("Sending request to Ollama API: {request}", JsonSerializer.Serialize(request));
-
-//            var content = new StringContent(
-//                JsonSerializer.Serialize(request),
-//                Encoding.UTF8,
-//                "application/json");
-
-//            var response = await _httpClient.PostAsync("http://localhost:11434/api/generate", content);
-//            response.EnsureSuccessStatusCode();
-
-//            var responseBody = await response.Content.ReadAsStringAsync();
-//            _logger.LogInformation("Received response: {response}", responseBody);
-
-//            // Parse the actual Ollama response format
-//            using var jsonDoc = JsonDocument.Parse(responseBody);
-//            return jsonDoc.RootElement.GetProperty("response").GetString() ??
-//                   "No response content received from AI service.";
-//        }
-//        catch (Exception ex)
-//        {
-//            _logger.LogError(ex, "Error communicating with Ollama API");
-//            return "AI service error: " + ex.Message;
-//        }
-//    }
-//}
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
@@ -67,15 +15,15 @@ public class AiAdvisorService
     private readonly ILogger<AiAdvisorService> _logger;
     private readonly List<DocumentVector> _vectors = new();
     private readonly string _vectorFilePath;
+    private const int DefaultEmbeddingDimension = 384; // Adjust if you change embedding model
 
     public AiAdvisorService(HttpClient httpClient, ILogger<AiAdvisorService> logger, IConfiguration configuration)
     {
         _httpClient = httpClient;
         _httpClient.Timeout = TimeSpan.FromMinutes(2);
         _logger = logger;
-        _vectorFilePath = configuration["VectorStorage:FilePath"] ?? "C:/halonot2.0/ollama_embedding/chroma.sqlite3";
+        _vectorFilePath = configuration["VectorStorage:FilePath"] ?? "RAG/chroma.sqlite3";
 
-        // Load vectors from Chroma DB
         LoadVectors();
     }
 
@@ -121,11 +69,11 @@ public class AiAdvisorService
                 });
             }
 
-            _logger.LogInformation("Loaded {count} vectors from Chroma DB", _vectors.Count);
+            _logger.LogInformation("Loaded {count} document vectors from Chroma DB.", _vectors.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load vectors from Chroma DB");
+            _logger.LogError(ex, "Failed to load vectors from {path}", sqlitePath);
         }
     }
 
@@ -147,8 +95,14 @@ public class AiAdvisorService
     {
         try
         {
-            var relevantDocuments = FindRelevantDocuments(question, topK: 3);
-            string context = string.Join("\n\n", relevantDocuments.Select(d => d.Content));
+            var relevantDocuments = FindRelevantDocuments(question, topK: 15);
+
+            if (relevantDocuments.Count == 0)
+            {
+                _logger.LogWarning("No relevant documents found for the question: {question}", question);
+            }
+
+            string combinedContext = string.Join("\n\n", relevantDocuments.Select(doc => doc.Content));
 
             string prompt = $@"
 You are a financial advisor AI.
@@ -156,22 +110,20 @@ You are a financial advisor AI.
 Use the following CONTEXT to answer the QUESTION.
 
 ### CONTEXT:
-{context}
+{combinedContext}
 
 ### QUESTION:
 {question}
 
 ### INSTRUCTIONS:
 - Only answer based on the context provided.
-- If the context does not contain the answer, say: 'The provided context does not include information about this question.'
 - Be clear, structured, and professional in your answer.
 - Start answering directly without repeating the question.
 
 ### ANSWER:
 ";
 
-
-            _logger.LogInformation("Sending request to Ollama API with RAG context");
+            _logger.LogInformation("Sending prompt to Ollama:\n{prompt}", prompt);
 
             var request = new
             {
@@ -187,7 +139,9 @@ Use the following CONTEXT to answer the QUESTION.
 
             var response = await _httpClient.PostAsync("http://localhost:11434/api/generate", content);
             response.EnsureSuccessStatusCode();
+
             var responseBody = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("Received response from Ollama.");
 
             using var jsonDoc = JsonDocument.Parse(responseBody);
             return jsonDoc.RootElement.GetProperty("response").GetString() ??
@@ -218,20 +172,22 @@ Use the following CONTEXT to answer the QUESTION.
             .Take(topK)
             .ToList();
 
-            _logger.LogInformation("Found {count} similar documents", similarities.Count);
+            _logger.LogInformation("Found {count} similar documents for the query.", similarities.Count);
+
             return similarities.Select(s => s.Document).ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error finding relevant documents");
+            _logger.LogError(ex, "Error finding relevant documents.");
             return new List<DocumentVector>();
         }
     }
 
     private float[] GetQueryEmbedding(string query)
     {
-        // Placeholder - replace with real embedding logic
-        return new float[384];
+        // TODO: Replace this with actual embedding generation
+        _logger.LogWarning("Using dummy query embedding. Replace with real embedding generation!");
+        return new float[DefaultEmbeddingDimension];
     }
 
     private float CosineSimilarity(float[] vecA, float[] vecB)
@@ -253,7 +209,7 @@ Use the following CONTEXT to answer the QUESTION.
         magnitudeA = (float)Math.Sqrt(magnitudeA);
         magnitudeB = (float)Math.Sqrt(magnitudeB);
 
-        return magnitudeA == 0 || magnitudeB == 0 ? 0 : dotProduct / (magnitudeA * magnitudeB);
+        return (magnitudeA == 0 || magnitudeB == 0) ? 0 : dotProduct / (magnitudeA * magnitudeB);
     }
 }
 
