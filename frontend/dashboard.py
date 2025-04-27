@@ -14,6 +14,10 @@ import requests
 import sys
 import os
 
+
+from ai_chat_view import AiChatView
+from presenter import AiChatPresenter
+from services import AiAdvisorService
 from services import StockService
 from api_client import ApiClient
 from model import Stock, Portfolio ,Transaction ,User
@@ -2717,109 +2721,14 @@ class MainWindow(QMainWindow):
     def handle_image_upload(self):
         self.portfolio_view.show_image_selector()
 
-
     def open_ai_chat_dialog(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("AI Chat Assistant")
-        dialog.setMinimumSize(600, 500)
-        dialog.setStyleSheet("""
-            QDialog {
-                background-color: #0C0D10;
-            }
-        """)
-
-        layout = QVBoxLayout(dialog)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(10)
-
-        # Chat display area
-        self.chat_history = QLabel()
-        self.chat_history.setWordWrap(True)
-        self.chat_history.setAlignment(Qt.AlignTop)
-        self.chat_history.setStyleSheet("""
-            QLabel {
-                background-color: #1A1D24;
-                border: 1px solid #2C313A;
-                padding: 15px;
-                border-radius: 10px;
-                font-size: 14px;
-                color: #F0F0F0;
-            }
-        """)
-        self.chat_history.setText("🤖 <b>AI Advisor:</b> How can I assist you with your portfolio today?")
-        
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("QScrollArea { background-color: transparent; border: none; }")
-        scroll_area.setWidget(self.chat_history)
-
-        layout.addWidget(scroll_area, 5)
-
-        # Input layout
-        input_layout = QHBoxLayout()
-        input_layout.setSpacing(10)
-
-        self.chat_input = QLineEdit()
-        self.chat_input.setPlaceholderText("Ask about stocks, performance, trends...")
-        self.chat_input.setStyleSheet("""
-            QLineEdit {
-                padding: 10px 15px;
-                font-size: 14px;
-                color: white;
-                background-color: #1E2026;
-                border: 1px solid #2C313A;
-                border-radius: 6px;
-            }
-            QLineEdit:focus {
-                border-color: #F0B90B;
-            }
-        """)
-
-        send_btn = QPushButton("Send")
-        send_btn.setCursor(Qt.PointingHandCursor)
-        send_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #F0B90B;
-                color: black;
-                font-weight: bold;
-                font-size: 14px;
-                padding: 10px 20px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background-color: #F8C032;
-            }
-        """)
-        send_btn.clicked.connect(lambda: self.handle_ai_message(dialog))
-
-        input_layout.addWidget(self.chat_input, 4)
-        input_layout.addWidget(send_btn, 1)
-
-        layout.addLayout(input_layout, 1)
-        dialog.exec()
-
-    def handle_ai_message(self, dialog=None):
-        question = self.chat_input.text().strip()
-        if not question:
-            return
-
-        # Simulate AI response
-        answer = f"I'm analyzing your query: <i>{question}</i>... Here's what I think 📊"
-
-        # Append to chat history
-        current_text = self.chat_history.text()
-        new_entry = f"""
-            <p style='margin-top: 10px;'><b>You:</b> {question}</p>
-            <p><b>🤖 AI Advisor:</b> {answer}</p>
-        """
-        self.chat_history.setText(current_text + new_entry)
-        self.chat_input.clear()
-
-        # Scroll to bottom
-        dialog.findChild(QScrollArea).verticalScrollBar().setValue(
-            dialog.findChild(QScrollArea).verticalScrollBar().maximum()
+        self.ai_chat_view = AiChatView()
+        self.ai_chat_presenter = AiChatPresenter(
+            self.ai_chat_view,
+            AiAdvisorService(),
+            self.current_user_id
         )
-
+        self.ai_chat_view.show()
 
 
 class LoadingOverlay(QWidget):

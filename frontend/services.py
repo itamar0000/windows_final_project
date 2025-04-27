@@ -96,3 +96,20 @@ def search_stock(self, query: str) -> List[tuple[str, str]]:
     results = response.json()
     return [(item["symbol"], item["name"]) for item in results]
 
+from interfaces import IAiAdvisorService
+
+class AiAdvisorService(IAiAdvisorService):
+    def __init__(self):
+        self.api_client = ApiClient("http://localhost:5000")
+
+    def ask(self, message):
+        try:
+            response = requests.post(
+                "http://localhost:5000/api/AiAdvisor/ask",
+                json={"question": message}  # ✅ no userId needed
+            )
+            data = response.json()
+            return data["response"]  # ✅ get "response", not "answer"
+        except Exception as e:
+            print("AI ask error:", e)
+            return f"Error: {e}"

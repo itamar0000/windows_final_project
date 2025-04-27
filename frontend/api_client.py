@@ -184,3 +184,28 @@ class ApiClient:
         if response.status_code == 200:
             return response.json().get("username", "Unknown")
         return "Unknown"
+
+
+    # def ask_question(self, question: str) -> str:
+    #     """Send a question to the AI Advisor backend and get the answer."""
+    #     url = f"{self.base_url}/api/aiadvisor/ask"
+    #     payload = {"question": question}
+
+    #     response = requests.post(url, json=payload, timeout=120)
+    #     if response.status_code != 200:
+    #         raise Exception(f"AI Advisor API error: {response.status_code}")
+
+    #     data = response.json()
+    #     return data.get("response", "No answer received.")
+    
+    async def ask_ai(self, user_id: str, question: str) -> str:
+        url = f"{self.base_url}/api/AiAdvisor/ask"
+        try:
+            payload = {
+                "question": question
+            }
+            response = requests.post(url, json=payload)
+            response.raise_for_status()
+            return response.json().get("response", "No response received from AI.")
+        except Exception as e:
+            return f"Error: {e}"

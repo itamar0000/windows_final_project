@@ -29,3 +29,33 @@ class IPortfolioService(Protocol):
 class IStockService(Protocol):
     def get_stock_data(self, symbol: str) -> tuple[List[tuple[datetime, float]], str, float]: pass
     def search_stock(self, query: str) -> List[tuple[str, str]]: pass
+
+class IAiAdvisorService(Protocol):
+    def ask_question(self, question: str) -> str: pass
+
+
+from typing import Protocol
+from model import AiChatMessage
+
+class IAiChatView(Protocol):
+    send_message_requested: any  # Signal will be used in real code (temporary as 'any')
+
+    def add_chat_message(self, message: AiChatMessage): pass
+    def show_thinking_state(self): pass
+    def hide_thinking_state(self): pass
+    def show_error(self, message: str): pass
+from abc import ABC, abstractmethod
+
+class IAiChatView(ABC):
+    @abstractmethod
+    def add_user_message(self, text: str):
+        pass
+
+    @abstractmethod
+    def add_ai_message(self, text: str):
+        pass
+
+class IAiAdvisorService(ABC):
+    @abstractmethod
+    def ask(self, user_id: str, question: str) -> str:
+        pass
