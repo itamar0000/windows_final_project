@@ -293,7 +293,9 @@ class AiChatPresenter(QObject):
         if not message.strip():
             return
 
-        self.view.add_message(message)
+        # The user message is already added in the view's handle_send_click method
+        # No need to add it again here!
+        
         self.view.set_typing_indicator(True)
 
         self.worker = AiWorker(self.service, message, self.user_id)
@@ -311,8 +313,10 @@ class AiChatPresenter(QObject):
 
     def handle_ai_response(self, response: str):
         self.view.set_typing_indicator(False)
-        self.view.add_message(response)
+        # Explicitly set from_user=False for AI responses
+        self.view.add_message(response, from_user=False)
 
     def handle_ai_error(self, error_message: str):
         self.view.set_typing_indicator(False)
-        self.view.add_message(f"Error: {error_message}")
+        # Error messages should also be styled as AI messages
+        self.view.add_message(f"Error: {error_message}", from_user=False)
