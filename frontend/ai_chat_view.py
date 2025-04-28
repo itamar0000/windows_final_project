@@ -254,7 +254,6 @@ class AiChatView(QWidget):
         text = self.input_field.text().strip()
         if text:
             # Add message to UI here ONLY
-            self.add_message(text, from_user=True)
             # Signal to the presenter
             self.send_message_requested.emit(text)
             self.input_field.clear()

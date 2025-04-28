@@ -2461,15 +2461,15 @@ class MainWindow(QMainWindow):
         self.toolbar = QToolBar()
         self.toolbar.setMovable(False)
         self.toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.toolbar.setIconSize(QIcon().actualSize(QSize(24, 24)))
+        self.toolbar.setIconSize(QSize(24, 24))  # Set consistent icon size
         self.toolbar.setStyleSheet("""
             QToolBar {
-                background-color: #2c3e50;
+                background-color: #F0B90B;  /* Yellow background */
                 spacing: 10px;
                 padding: 5px;
             }
             QToolButton {
-                color: white;
+                color: black;  /* Black text */
                 background-color: transparent;
                 border: none;
                 border-radius: 4px;
@@ -2477,26 +2477,25 @@ class MainWindow(QMainWindow):
                 font-weight: bold;
             }
             QToolButton:hover {
-                background-color: #34495e;
+                background-color: #FFCD29;  /* Darker yellow on hover */
             }
             QToolButton:checked {
-                background-color: #3498db;
+                background-color: #FFB700;  /* Even darker yellow when checked */
             }
         """)
 
-        # Actions
-        portfolio_action = QAction("Portfolio", self)
+        # Actions with icons
+        portfolio_action = QAction(QIcon("icons/portfolio.png"), "Portfolio", self)
         portfolio_action.triggered.connect(lambda: self.portfolio_view.switch_section(0))
 
-        transactions_action = QAction("Transactions", self)
+        transactions_action = QAction(QIcon("icons/transactions.png"), "Transactions", self)
         transactions_action.triggered.connect(lambda: self.portfolio_view.switch_section(1))
 
-        search_action = QAction("Search", self)
+        search_action = QAction(QIcon("icons/search.png"), "Search", self)
         search_action.triggered.connect(lambda: self.portfolio_view.switch_section(3))
 
-        ai_chat_action = QAction("AI Chat", self)
+        ai_chat_action = QAction(QIcon("icons/chat.png"), "AI Chat", self)
         ai_chat_action.triggered.connect(self.open_ai_chat_dialog)
-
 
         # Add actions to toolbar
         self.toolbar.addAction(portfolio_action)
@@ -2509,7 +2508,7 @@ class MainWindow(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.toolbar.addWidget(spacer)
 
-        logout_action = QAction("Logout", self)
+        logout_action = QAction(QIcon("icons/logout.png"), "Logout", self)
         logout_action.triggered.connect(self.handle_logout)
         self.toolbar.addAction(logout_action)
 
@@ -2518,7 +2517,6 @@ class MainWindow(QMainWindow):
 
         self.loading_overlay = LoadingOverlay(self)
         self.loading_overlay.hide()
-
 
 
     def set_profile_preset(self, index: int):
@@ -2863,3 +2861,20 @@ class LoadingOverlay(QWidget):
             self.move(0, 0)
             self.raise_()
 
+from PySide6.QtCore import QObject ,Slot
+
+class Worker(QObject):
+    finished = Signal()
+    error = Signal(str)
+
+    def __init__(self, function_to_run):
+        super().__init__()
+        self.function_to_run = function_to_run
+
+    @Slot()
+    def run(self):
+        try:
+            self.function_to_run()
+            self.finished.emit()
+        except Exception as e:
+            self.error.emit(str(e))
